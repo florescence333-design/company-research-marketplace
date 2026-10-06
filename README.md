@@ -39,7 +39,7 @@ if ([string]::IsNullOrWhiteSpace($env:SEC_USER_AGENT)) { throw 'SEC_USER_AGENT �
 npm.cmd run dev --prefix site -- --host 127.0.0.1 --port 4321
 ```
 
-명령이 성공하면 `http://127.0.0.1:4321/company/RKLB/`에서 결과를 본다. 마지막 개발 서버 명령은 실행 상태로 남으므로 확인 후 `Ctrl+C`로 종료한다. 실제 실행은 SEC 수집 → 원본 재계산 → 16섹션 부분 보고서 → Mermaid 매출 도식 → 로컬 사이트 빌드·테스트까지 자동으로 연결한다. `--new`를 빼면 24시간 이내 같은 조건의 미완료 실행 1개를 재사용한다. 자세한 검증·재게시 방법은 [배포 안내](docs/DEPLOYMENT.md)에 있다.
+명령이 성공하면 `http://127.0.0.1:4321/company/RKLB/`에서 결과를 본다. 보고서 탭은 16개 섹션을 제목·상태·출처별로 표시하고 원문도 접어 볼 수 있다. 마지막 개발 서버 명령은 실행 상태로 남으므로 확인 후 `Ctrl+C`로 종료한다. 실제 실행은 SEC 수집 → 원본 재계산 → 16섹션 부분 보고서 → Mermaid 매출 도식 → 로컬 사이트 빌드·테스트까지 자동으로 연결한다. `--new`를 빼면 24시간 이내 같은 조건의 미완료 실행 1개를 재사용한다. 자세한 검증·재게시 방법은 [배포 안내](docs/DEPLOYMENT.md)에 있다.
 
 ## Claude Code 플러그인 설치
 

@@ -18,7 +18,10 @@ test('static dashboard and RKLB detail show their actual data status', () => {
   if (existsSync(join(versionRoot, 'meta.json'))) {
     assert.match(company, /SEC Company Facts/);
     assert.doesNotMatch(company, /class="badge sample">샘플 데이터/);
-    if (existsSync(join(versionRoot, 'report-items.json'))) assert.match(company, /S16 최종 결론/);
+    if (existsSync(join(versionRoot, 'report-items.json'))) {
+      assert.match(company, /S16 최종 결론/);
+      assert.equal((company.match(/class="report-section"/g) || []).length, 16, 'each Master Template section has a readable report block');
+    }
     if (pointer) assert.ok(company.includes(pointer.run_id), 'built page must contain selected published run');
   } else {
     assert.match(company, /샘플 데이터/);

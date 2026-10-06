@@ -72,7 +72,15 @@ const metricDisplay = (version, id) => {
         <div class="panel tab-panel" data-panel="0">
           <h2>기업 분석 보고서</h2>
           <p class="muted">확인 가능한 자료와 근거를 기준으로 표시합니다.</p>
-          <pre id="report-text">{current.report || '16단계 Master Template 준비 완료 · 이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.'}</pre>
+          <div id="report-sections" class="report-sections">
+            {current.reportItems.length ? current.reportItems.map(section =>
+              <article class="report-section">
+                <div class="report-section-head"><span class="report-id">{section.section_id}</span><h3>{section.title}</h3><span class="report-status">{section.status === 'partial' ? '부분 작성' : '자료 확인 대기'}</span></div>
+                <div class="report-body">{section.body}</div>
+                {section.source_ids.length > 0 && <div class="report-sources">출처 ID: {section.source_ids.join(', ')}</div>}
+              </article>) : <p class="muted">16단계 Master Template 준비 완료 · 이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.</p>}
+          </div>
+          <details class="report-original"><summary>보고서 원문 보기</summary><pre id="report-text">{current.report || '미생성'}</pre></details>
         </div>
         <div class="panel tab-panel" data-panel="1" hidden>
           <h2>재무 데이터</h2><p class="muted">출처가 확인된 지표만 표시합니다. 없는 값은 0으로 채우지 않습니다.</p>
@@ -92,6 +100,37 @@ const metricDisplay = (version, id) => {
     const versions = JSON.parse(main.dataset.versions);
     mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
     let diagramSequence = 0;
+    function renderReportSections(items) {
+      const target = document.querySelector('#report-sections');
+      target.replaceChildren();
+      if (!items.length) { target.textContent = '이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.'; return; }
+      for (const section of items) {
+        const article = document.createElement('article');
+        article.className = 'report-section';
+        const heading = document.createElement('div');
+        heading.className = 'report-section-head';
+        const id = document.createElement('span');
+        id.className = 'report-id';
+        id.textContent = section.section_id;
+        const title = document.createElement('h3');
+        title.textContent = section.title;
+        const status = document.createElement('span');
+        status.className = 'report-status';
+        status.textContent = section.status === 'partial' ? '부분 작성' : '자료 확인 대기';
+        heading.append(id, title, status);
+        const body = document.createElement('div');
+        body.className = 'report-body';
+        body.textContent = section.body;
+        article.append(heading, body);
+        if (section.source_ids.length) {
+          const sources = document.createElement('div');
+          sources.className = 'report-sources';
+          sources.textContent = `출처 ID: ${section.source_ids.join(', ')}`;
+          article.append(sources);
+        }
+        target.append(article);
+      }
+    }
     async function renderDiagram(source) {
       const target = document.querySelector('#diagram-render');
       if (!source) { target.textContent = '미생성'; return; }
@@ -116,6 +155,7 @@ const metricDisplay = (version, id) => {
       document.querySelector('#as-of').textContent = version.meta.analysis_as_of || '실제 데이터 수집 전';
       document.querySelector('#verdict-reason').textContent = version.decision.reason;
       document.querySelector('#report-text').textContent = version.report || '이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.';
+      renderReportSections(version.reportItems);
       document.querySelector('#diagram-text').textContent = version.diagram || '미생성';
       if (!document.querySelector('[data-panel="2"]').hidden) renderDiagram(version.diagram);
       document.querySelector('#template-rows').textContent = version.reportItems.length ? version.reportItems.map(s => `${s.section_id} ${s.title}: ${s.status === 'partial' ? '부분 작성' : '자료 확인 대기'}`).join(' / ') : '실제 보고서 생성 대기';
@@ -158,6 +198,16 @@ const metricDisplay = (version, id) => {
   .tab-panel h2 { font-size:16px; }
   .tab-panel p { font-size:12px; }
   pre { color:#aac1b2; white-space:pre-wrap; font:12px/1.8 'Noto Sans KR',sans-serif; margin:25px 0 0; }
+  .report-sections { display:grid; gap:12px; margin-top:22px; }
+  .report-section { border:1px solid #30483e; border-radius:10px; padding:20px 22px; background:#14201c; }
+  .report-section-head { display:flex; align-items:baseline; gap:11px; flex-wrap:wrap; }
+  .report-id { color:#86b9aa; font:500 11px 'IBM Plex Mono',monospace; }
+  .report-section h3 { color:#e3eee6; font-size:15px; font-weight:600; margin:0; }
+  .report-status { margin-left:auto; color:#9bbaa8; font-size:11px; }
+  .report-body { color:#bacbbf; font:12px/1.8 'Noto Sans KR',sans-serif; white-space:pre-wrap; margin-top:13px; overflow-wrap:anywhere; }
+  .report-sources { color:#728d7e; font:10px/1.6 'IBM Plex Mono',monospace; margin-top:15px; overflow-wrap:anywhere; }
+  .report-original { margin-top:20px; }
+  .report-original summary { cursor:pointer; }
   #diagram-render { margin-top:22px; min-height:130px; color:#abc8b6; }
   #diagram-render :global(svg) { max-width:100%; height:auto; }
   details { margin-top:22px; color:#779889; font-size:11px; }
