@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { basename, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -50,6 +52,32 @@ test('static dashboard and RKLB detail show their actual data status', () => {
 test('public build info contains only commit hash and build time', () => {
   const info = JSON.parse(readFileSync(join(root, 'dist/build-info.json'), 'utf8'));
   assert.deepEqual(Object.keys(info).sort(), ['built_at', 'commit_sha']);
-  assert.match(info.commit_sha, /^[a-f0-9]{40}$/);
+  if (existsSync(join(root, '..', '.git')) || existsSync(join(root, '.git')) || process.env.CF_PAGES_COMMIT_SHA) {
+    assert.match(info.commit_sha, /^[a-f0-9]{40}$/);
+  } else {
+    assert.equal(info.commit_sha, null);
+  }
   assert.match(info.built_at, /^\d{4}-\d{2}-\d{2}T/);
+});
+
+test('plugin workspace without Git records no commit rather than failing the build', () => {
+  const temporary = mkdtempSync(join(tmpdir(), 'company-build-info-'));
+  try {
+    const site = join(temporary, 'site');
+    mkdirSync(join(site, 'scripts'), { recursive: true });
+    copyFileSync(join(root, 'scripts', 'write-build-info.mjs'), join(site, 'scripts', 'write-build-info.mjs'));
+    const env = { ...process.env };
+    delete env.CF_PAGES_COMMIT_SHA;
+    const result = spawnSync(process.execPath, [join(site, 'scripts', 'write-build-info.mjs')], {
+      cwd: site, env, encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const info = JSON.parse(readFileSync(join(site, 'public', 'build-info.json'), 'utf8'));
+    assert.deepEqual(Object.keys(info).sort(), ['built_at', 'commit_sha']);
+    assert.equal(info.commit_sha, null);
+  } finally {
+    const resolved = resolve(temporary);
+    assert.ok(resolved.startsWith(resolve(tmpdir()) + sep) && basename(resolved).startsWith('company-build-info-'));
+    rmSync(resolved, { recursive: true, force: true });
+  }
 });

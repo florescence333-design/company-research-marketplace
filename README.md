@@ -42,7 +42,7 @@ Set-Location "$env:USERPROFILE\Documents\CompanyResearchTest"
 npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 ```
 
-화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. `/company RKLB`는 SEC 수집 → 코드 초안 → Claude의 16섹션 근거 검토 → 검증 → 로컬 게시를 목표로 한다. 투자는 `판정 보류 (v0.1)`로 표시한다. 공개 마켓플레이스 설치와 두 AI 엔진의 분리 실행·로컬 게시는 확인했지만, **새 폴더에서 `/company RKLB` 한 줄의 Claude AI 단계까지는 사용량 제한으로 아직 검증하지 않았다.** 로컬 게시 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
+화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. `/company RKLB`는 SEC 수집 → 코드 초안 → Claude의 16섹션 근거 검토 → 검증 → 로컬 게시를 목표로 한다. 투자는 `판정 보류 (v0.1)`로 표시한다. 공개 마켓플레이스 설치와 두 AI 엔진의 분리 실행·로컬 게시는 확인했지만, **새 폴더에서 `/company RKLB` 한 줄의 Claude AI 단계까지는 사용량 제한으로 아직 검증하지 않았다.** Git이 없는 새 작업 폴더의 공개 `build-info.json`에는 `commit_sha: null`을 기록하며, Cloudflare 배포에서는 실제 커밋 해시가 필수다. 로컬 게시 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
 
 ## Claude Code에서 예상되는 권한 승인
 
