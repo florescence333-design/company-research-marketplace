@@ -44,7 +44,7 @@ npm.cmd run dev --prefix site -- --host 127.0.0.1 --port 4321
 
 ## Claude Code 플러그인 설치
 
-프로젝트 루트에서 Claude Code를 실행한다. 로그인되지 않았다면 `/login`을 먼저 완료한다. 공개 저장소의 마켓플레이스 등록·플러그인 설치·활성화와 `claude plugin validate --strict .`는 이 PC에서 확인했다. **Claude AI의 실제 16섹션 분석 실행은 로그인 뒤 확인할 예정**이다.
+프로젝트 루트에서 Claude Code를 실행한다. 로그인되지 않았다면 `/login`을 먼저 완료한다. 공개 저장소의 마켓플레이스 등록·플러그인 설치·활성화와 `claude plugin validate --strict .`는 이 PC에서 확인했다. Claude Code AI의 실제 RKLB 16섹션 작성·검증·로컬 게시도 제한된 도구로 나누어 실행해 확인했다. **`/company RKLB` 슬래시 명령의 단일 호출 전체는 아직 확인하지 않았다.**
 
 ```powershell
 claude
@@ -66,7 +66,7 @@ Claude Code 대화 입력창에서 아래 명령을 순서대로 실행한다. �
 | --- | --- |
 | 16개 Master Template 섹션 ID·제목, v1 초안 JSON Schema | 투자 프레임워크 v2 입력 |
 | RKLB 4년 SEC 재무·최신 단독 분기 매출 비교·매출 CAGR·영업이익률·FCF·부채비율·EPS 근사·2025 10-K 사업/고객 집중도 일부 | 다른 기업·비12월 결산 검증, 공시 전체 대조·심층 재무 지표 |
-| 16섹션 부분 보고서, 매출 Mermaid 도식, 로컬 사이트와 Pages 인증 검사 | 산업·고객·경쟁력 등 전체 AI 분석, 주가/배당/실적 일정 |
+| Claude AI가 작성한 RKLB 16섹션 부분 보고서 1건, 매출 Mermaid 도식, 로컬 사이트와 Pages 인증 검사 | 산업·고객·경쟁력의 미확인 부분, 주가/배당/실적 일정, 슬래시 명령 전체 실행 검증 |
 | 실행 재사용, 로컬 자동 게시·빌드 실패 복구 | 판정 엔진, 원격 GitHub/Cloudflare 게시·인증 검증 |
 
 구체적인 제한과 재확인 항목은 [알려진 문제](docs/KNOWN_ISSUES.md)에 있다. 비밀 값과 실제 실행 데이터는 Git에서 제외된다.
