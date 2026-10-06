@@ -24,6 +24,13 @@ class CompanyCommandTests(unittest.TestCase):
                 checked = subprocess.run([sys.executable, str(ROOT / "scripts" / "validate_bundle.py"), temp], cwd=ROOT, capture_output=True, text=True)
                 self.assertEqual(checked.returncode, 0, checked.stdout + checked.stderr)
 
+    def test_conflicting_visualization_options_are_rejected(self):
+        result = subprocess.run([sys.executable, str(ROOT / "scripts" / "company.py"), "RKLB", "--engine", "gpt",
+                                 "--no-viz", "--viz-only", "--run-id", "one"],
+                                cwd=ROOT, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("잘못된 옵션 조합", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -15,7 +15,7 @@
 | `metrics.json` | 계산·수집 스크립트 | `run_id`, `data_snapshot_id`, `metrics[]`의 `metric_id/value/status/unit/approximate/reason/period_start/period_end/source_ids` | ID와 스냅샷은 meta와 일치. 출처 ID는 sources에 존재해야 함 |
 | `sources.json` | 수집 스크립트 | `sources[]`의 `source_id/url/title/accessed_at/location`, 선택적으로 공시 번호·해시·인용문 | URL 확인만으로 내용 진실성을 보증하지 않음 |
 | `decision.json` | 임시 판정 스크립트 | `schema_version=v1-draft`, `decision_policy_version=v0.1`, `verdict=판정 보류 (v0.1)`, `reason`, null 축, `pending_rules` | 실제 판정 불가. 같은 실행·스냅샷을 참조 |
-| `run.json` | 실행 스크립트 | 실행 ID·티커·엔진·기준시점·스냅샷·단계별 `step_id/state`와 선택적 입출력 SHA-256 | 단계 상태는 `pending/running/completed/failed/blocked` |
+| `run.json` | 실행 스크립트 | 실행 ID·티커·엔진·기준시점·스냅샷·옵션·단계별 `step_id/state`와 선택적 입출력 SHA-256 | 단계 상태는 `pending/running/completed/failed/blocked` |
 
 공통 상태는 `ok`, `not_applicable`, `unavailable`, `collection_failed`다. `ok` 수치는 number이고, 나머지 상태는 `value=null`과 비어 있지 않은 `reason`을 요구한다. `approximate`는 항상 별도 boolean이다. 0은 실제 측정값일 수 있으므로 누락값의 대용으로 쓰지 않는다. 계산 중에는 Python `Decimal`을 사용하고 JSON의 수치 직렬화·표시 반올림은 계산과 구분한다. 모든 시각은 시간대 정보를 포함하며 재무 기간은 별도 날짜 필드로 둔다.
 
@@ -60,3 +60,9 @@ npm.cmd run build --prefix site
 ```
 
 `data/`, `runs/`, `site/data/`는 Git에서 제외한다. SEC_USER_AGENT 값은 코드·출력·문서에 쓰지 않는다. `verify_sec_run.py`는 보관한 SEC 원본 해시와 선정 지표·출처를 다시 계산해 대조한다. 공시 본문 확인, 다른 결산월 기업 검증, AI의 재무 해석은 다음 작업이다.
+
+## 6단계 실행 상태와 도식
+
+실제 실행은 `run.json`에 S0~S7의 상태와 검증 가능한 산출물 해시를 기록한다. `--new`는 새 실행, `--run-id`는 같은 티커·엔진 실행의 해시 확인 후 재사용이다. 기본 실행은 같은 옵션의 24시간 이내 미완료 실행이 하나일 때 그 실행을 재사용하고, 여러 개면 명시 ID를 요구한다. 현재 단순 파이프라인은 중간 단계 부분 재실행 대신 변조를 감지해 새 실행을 요구한다. S3 공시 주석·본문 추출과 S6/S7 원격 게시 검증은 아직 pending으로 남는다.
+
+`scripts/visualize_run.py`는 검증된 연간 매출 2개 이상에서 Mermaid 매출 연혁 도식을 만든다. `diagrams/manifest.json`은 기준 보고서 run_id·스냅샷·보고서 해시·도식 해시를 기록한다. `--no-viz`는 도식 없이 결과를 만들고, `--viz-only --run-id <id>`는 기존 보고서 해시가 바뀌지 않았을 때 도식만 다시 만든다. 브라우저는 Mermaid를 렌더링한다. 사업 플라이휠·밸류체인 도식은 아직 자료 확인 대기다. `--original`은 원본 템플릿 사용을 실행 옵션에 기록하며 현재 커스텀 템플릿 생성 전이라 기본 실행과 동일한 16개 원본 섹션을 사용한다.

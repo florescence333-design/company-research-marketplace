@@ -20,6 +20,7 @@ export function loadCompany(ticker = 'RKLB') {
         metrics: existsSync(join(folder, 'metrics.json')) ? readJson(join(folder, 'metrics.json')).metrics : [],
         sources: existsSync(join(folder, 'sources.json')) ? readJson(join(folder, 'sources.json')).sources : [],
         reportItems: existsSync(join(folder, 'report-items.json')) ? readJson(join(folder, 'report-items.json')).sections : [],
+        diagram: existsSync(join(folder, 'diagrams/revenue.mmd')) ? readFileSync(join(folder, 'diagrams/revenue.mmd'), 'utf8') : null,
         report: existsSync(join(folder, 'report.md')) ? readFileSync(join(folder, 'report.md'), 'utf8') : null,
       };
     }
@@ -28,7 +29,7 @@ export function loadCompany(ticker = 'RKLB') {
     const placeholder = engine => ({
       meta: { ticker, engine, sample: true, analysis_as_of: null },
       decision: { verdict: '판정 보류 (v0.1)', reason: '샘플 화면: 실제 공시 분석 전' },
-      metrics: [], sources: [], reportItems: [], report: null,
+      metrics: [], sources: [], reportItems: [], diagram: null, report: null,
     });
     versions.claude = placeholder('claude');
     versions.gpt = placeholder('gpt');

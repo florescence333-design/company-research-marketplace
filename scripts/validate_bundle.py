@@ -50,6 +50,19 @@ def validate_bundle(folder: Path) -> list[str]:
             errors.extend(f"report-items.json: {error}" for error in validate_report_items(report, objects))
         except (OSError, json.JSONDecodeError) as exc:
             errors.append(f"report-items.json: 읽기 실패: {exc}")
+    run_path = folder / "run.json"
+    if run_path.exists():
+        try:
+            run = json.loads(run_path.read_text(encoding="utf-8"))
+            schema = json.loads((SCHEMAS / "run.schema.json").read_text(encoding="utf-8"))
+            errors.extend(f"run.json: {error.message}" for error in Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(run))
+            if "meta" in objects and (run.get("run_id") != objects["meta"].get("run_id") or run.get("data_snapshot_id") != objects["meta"].get("data_snapshot_id")):
+                errors.append("run.json: meta.json과 실행·스냅샷 ID 불일치")
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"run.json: 읽기 실패: {exc}")
+    if (folder / "diagrams" / "manifest.json").exists():
+        from visualize_run import verify_visualization
+        errors.extend(verify_visualization(folder))
     return errors
 
 

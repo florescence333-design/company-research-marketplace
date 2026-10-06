@@ -78,7 +78,7 @@ const metricDisplay = (version, id) => {
           <h2>재무 데이터</h2><p class="muted">출처가 확인된 지표만 표시합니다. 없는 값은 0으로 채우지 않습니다.</p>
           <div id="financial-rows" class="data-rows">{current.metrics.length ? current.metrics.map(m => <div><span>{m.metric_id}</span><strong>{m.status === 'ok' ? m.value : '확인 불가'}</strong></div>) : <span>아직 검증된 재무 수치가 없습니다.</span>}</div>
         </div>
-        <div class="panel tab-panel" data-panel="2" hidden><h2>시각화</h2><p class="muted">플라이휠과 밸류체인 도식은 보고서 검증 후 생성됩니다.</p></div>
+        <div class="panel tab-panel" data-panel="2" hidden><h2>시각화</h2><p class="muted">검증된 연간 매출 추이입니다. 사업 플라이휠·밸류체인은 근거 검토 후 생성합니다.</p><div id="diagram-render">{current.diagram ? '도식 준비 중' : '미생성'}</div><details><summary>Mermaid 원문</summary><pre id="diagram-text">{current.diagram || '미생성'}</pre></details></div>
         <div class="panel tab-panel" data-panel="3" hidden><h2>Master Template</h2><p class="muted">확정본 16개 섹션의 ID·제목과 이 보고서의 작성 상태입니다.</p><div id="template-rows" class="data-rows">{current.reportItems.length ? current.reportItems.map(s => <div><span>{s.section_id} {s.title}</span><strong>{s.status === 'partial' ? '부분 작성' : '자료 확인 대기'}</strong></div>) : <span>실제 보고서 생성 대기</span>}</div></div>
         <div class="panel tab-panel" data-panel="4" hidden><h2>출처·데이터</h2><p class="muted">기준시점·수집 상태·출처를 함께 확인합니다.</p><div id="source-rows" class="data-rows">{current.sources.length ? current.sources.map(s => <div><span>{s.title}</span><a href={s.url} target="_blank" rel="noopener noreferrer">원문 ↗</a></div>) : <span>표시할 검증 출처가 없습니다.</span>}</div></div>
         <div class="panel tab-panel" data-panel="5" hidden><h2>두 엔진 비교</h2><p class="muted">같은 항목의 차이와 데이터 기준시점 차이를 보여줍니다.</p><div class="compare"><div><span>CLAUDE판</span><strong>{versions.claude ? versions.claude.decision.verdict : '미생성'}</strong></div><div><span>GPT판</span><strong>{versions.gpt ? versions.gpt.decision.verdict : '미생성'}</strong></div></div></div>
@@ -87,12 +87,27 @@ const metricDisplay = (version, id) => {
     </main>
   </div>
   <script>
+    import mermaid from 'mermaid';
     const main = document.querySelector('main[data-versions]');
     const versions = JSON.parse(main.dataset.versions);
+    mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
+    let diagramSequence = 0;
+    async function renderDiagram(source) {
+      const target = document.querySelector('#diagram-render');
+      if (!source) { target.textContent = '미생성'; return; }
+      try {
+        const sequence = ++diagramSequence;
+        const { svg } = await mermaid.render(`revenue-${sequence}`, source);
+        if (sequence === diagramSequence) target.innerHTML = svg;
+      } catch {
+        target.textContent = '도식 렌더링 실패 · Mermaid 원문을 확인하세요.';
+      }
+    }
     document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
       const target = button.dataset.tab;
       document.querySelectorAll('[data-tab]').forEach(tab => { tab.classList.toggle('active', tab === button); tab.setAttribute('aria-selected', String(tab === button)); });
       document.querySelectorAll('[data-panel]').forEach(panel => { panel.hidden = panel.dataset.panel !== target; });
+      if (target === '2') renderDiagram(versions[document.querySelector('[data-engine].active').dataset.engine].diagram);
     }));
     document.querySelectorAll('[data-engine]').forEach(button => button.addEventListener('click', () => {
       const version = versions[button.dataset.engine];
@@ -100,6 +115,8 @@ const metricDisplay = (version, id) => {
       document.querySelector('#as-of').textContent = version.meta.analysis_as_of || '실제 데이터 수집 전';
       document.querySelector('#verdict-reason').textContent = version.decision.reason;
       document.querySelector('#report-text').textContent = version.report || '이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.';
+      document.querySelector('#diagram-text').textContent = version.diagram || '미생성';
+      if (!document.querySelector('[data-panel="2"]').hidden) renderDiagram(version.diagram);
       document.querySelector('#template-rows').textContent = version.reportItems.length ? version.reportItems.map(s => `${s.section_id} ${s.title}: ${s.status === 'partial' ? '부분 작성' : '자료 확인 대기'}`).join(' / ') : '실제 보고서 생성 대기';
       document.querySelectorAll('[data-metric]').forEach(item => {
         const fact = version.metrics.find(metric => metric.metric_id === item.dataset.metric);
@@ -140,6 +157,9 @@ const metricDisplay = (version, id) => {
   .tab-panel h2 { font-size:16px; }
   .tab-panel p { font-size:12px; }
   pre { color:#aac1b2; white-space:pre-wrap; font:12px/1.8 'Noto Sans KR',sans-serif; margin:25px 0 0; }
+  #diagram-render { margin-top:22px; min-height:130px; color:#abc8b6; }
+  #diagram-render :global(svg) { max-width:100%; height:auto; }
+  details { margin-top:22px; color:#779889; font-size:11px; }
   .data-rows { margin-top:22px; color:#b9c9bd; font-size:12px; }
   .data-rows div { display:flex; justify-content:space-between; gap:20px; padding:12px 0; border-bottom:1px solid #30423b; }
   .compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:25px; }
