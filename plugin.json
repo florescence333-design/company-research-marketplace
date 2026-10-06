@@ -1,0 +1,7 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "company-analysis",
+  "version": "0.1.0",
+  "description": "US-GAAP company research workflow with a clearly deferred v0.1 investment decision.",
+  "author": {"name": "김지원"}
+}

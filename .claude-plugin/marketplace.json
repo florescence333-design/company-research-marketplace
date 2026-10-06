@@ -1,0 +1,12 @@
+{
+  "name": "company-research-marketplace",
+  "description": "A personal marketplace for the company-analysis plugin.",
+  "owner": {"name": "김지원"},
+  "plugins": [
+    {
+      "name": "company-analysis",
+      "source": "./",
+      "description": "US-GAAP company research workflow"
+    }
+  ]
+}
