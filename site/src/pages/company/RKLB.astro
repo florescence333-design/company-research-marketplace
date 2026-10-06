@@ -1,8 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import { loadCompany } from '../../lib/data.mjs';
+import { compareReports } from '../../lib/comparison.mjs';
 
 const versions = loadCompany('RKLB');
+const comparison = compareReports(versions);
 const initialEngine = versions.gpt ? 'gpt' : 'claude';
 const current = versions[initialEngine];
 const isSample = Object.values(versions).every(v => v.meta.sample);
@@ -115,7 +117,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
         <div class="panel tab-panel" data-panel="2" hidden><h2>사업 시각화</h2><p class="muted">보고서의 사업 구조·커스텀 분석·확장성 근거를 바탕으로 그립니다.</p><div id="diagram-panels">{Object.keys(current.diagrams).length ? '도식 준비 중' : '보고서 분석 완료 후 생성'}</div></div>
         <div class="panel tab-panel" data-panel="3" hidden><h2>기업별 커스텀 프레임워크</h2><p class="muted">적합성 판정과 원본 대비 구분표, 16개 대섹션·추가 하위 섹션의 상세 질문입니다.</p><div id="template-render" class="template-render"></div><pre id="template-text" class="template-text">{current.template || 'S0.5 커스텀 템플릿 작성 대기'}</pre></div>
         <div class="panel tab-panel" data-panel="4" hidden><h2>출처·데이터</h2><p class="muted">보고서의 출처 ID를 아래 공시 위치와 대조할 수 있습니다.</p><div id="source-rows" class="data-rows">{current.sources.length ? current.sources.map(s => <div class="source-row"><span><code>{s.source_id}</code><strong>{s.title}</strong><small>{s.location}</small></span><a href={s.url} target="_blank" rel="noopener noreferrer">원문 ↗</a></div>) : <span>표시할 검증 출처가 없습니다.</span>}</div></div>
-        <div class="panel tab-panel" data-panel="5" hidden><h2>두 엔진 비교</h2><p class="muted">같은 항목의 차이와 데이터 기준시점 차이를 보여줍니다.</p><div class="compare"><div><span>CLAUDE판</span><strong>{versions.claude ? versions.claude.decision.verdict : '미생성'}</strong></div><div><span>GPT판</span><strong>{versions.gpt ? versions.gpt.decision.verdict : '미생성'}</strong></div></div></div>
+        <div class="panel tab-panel" data-panel="5" hidden><h2>두 엔진 비교</h2><p class="muted">같은 섹션의 작성 범위와 웹 근거 수를 비교합니다. 사업 품질 항목별 평가는 v0.1에서 아직 실행하지 않았습니다.</p><div class="compare"><div><span>CLAUDE판</span><strong>{versions.claude ? versions.claude.decision.verdict : '미생성'}</strong><small>{versions.claude?.meta.analysis_as_of || '기준일 없음'}</small></div><div><span>GPT판</span><strong>{versions.gpt ? versions.gpt.decision.verdict : '미생성'}</strong><small>{versions.gpt?.meta.analysis_as_of || '기준일 없음'}</small></div></div><div class="compare-table-wrap"><table class="compare-table"><thead><tr><th>섹션</th><th>Claude판</th><th>GPT판</th><th>차이</th></tr></thead><tbody>{comparison.map(row => <tr><th>{row.id} {row.title}</th><td>{row.claude.status} · 웹 {row.claude.webSources}건 · {row.claude.length.toLocaleString('ko-KR')}자</td><td>{row.gpt.status} · 웹 {row.gpt.webSources}건 · {row.gpt.length.toLocaleString('ko-KR')}자</td><td>{row.difference}</td></tr>)}</tbody></table></div></div>
         <p class="page-footnote">판정 기준 v1의 세부 규칙이 미정입니다. 이 화면의 v0.1 보류 표시는 투자 권고가 아닙니다.</p>
       </div>
     </main>
@@ -426,6 +428,12 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
   .compare div { border:1px solid #395045; border-radius:9px; padding:18px; display:grid; gap:12px; }
   .compare span { font:11px 'IBM Plex Mono'; color:#8aa99a; }
   .compare strong { font-size:16px; }
+  .compare small { color:#8aa99a; font:11px 'IBM Plex Mono'; overflow-wrap:anywhere; }
+  .compare-table-wrap { overflow-x:auto; margin-top:20px; }
+  .compare-table { width:100%; border-collapse:collapse; min-width:660px; font-size:12px; }
+  .compare-table th,.compare-table td { text-align:left; vertical-align:top; padding:12px 10px; border-bottom:1px solid #395045; }
+  .compare-table thead th { color:#92bca5; font:10px 'IBM Plex Mono'; text-transform:uppercase; }
+  .compare-table tbody th { width:24%; font-weight:600; }
   .page-footnote { color:#6e867a; font-size:10px; margin-top:20px; }
   @media(max-width:720px) { .intro-row { display:block; } .engine-switch { display:inline-flex; margin-top:20px; } .decision-panel { display:block; } .decision-side { border-left:0; border-top:1px solid #496356; padding:18px 0 0; margin-top:20px; } .metric-grid,.financial-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .chart-heading { align-items:start; flex-direction:column; } .tradingview-widget-container__widget { height:285px; } .status-line .muted { margin-left:0; width:100%; } }
   @media(max-width:430px) { .metric-grid,.financial-grid { grid-template-columns:1fr; } .metric,.financial-card { min-height:90px; } .report-toc { grid-template-columns:1fr; } .tab-panel { padding:20px 16px; } }

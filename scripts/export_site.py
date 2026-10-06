@@ -40,6 +40,11 @@ def export_site(destination: Path):
         validation = json.loads((version / "validation.json").read_text(encoding="utf-8"))
         if validation.get("status") != "passed" or validation.get("run_id") != pointer.get("run_id"):
             raise ValueError("검증되지 않은 사이트 결과")
+        meta = json.loads((version / "meta.json").read_text(encoding="utf-8"))
+        if meta.get("model") is None:
+            # An SEC/code draft may pass structural checks but is not a finished AI report.
+            # Keep the last validated AI selection in the private site checkout.
+            continue
         target_root = destination / "data" / "companies" / "RKLB" / engine
         target_version = target_root / "versions" / version_id
         if not target_version.exists():
