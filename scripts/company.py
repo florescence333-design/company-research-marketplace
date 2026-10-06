@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from report import write_report
 from sec import build_sec_bundle, fetch_companyfacts
 from validate_bundle import validate_bundle
 
@@ -25,15 +26,7 @@ def write_real_run(output: Path, engine: str) -> None:
         raise ValueError(f"Output directory is not empty: {output}")
     for name, obj in bundle.items():
         (output / f"{name}.json").write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    lines = ["# RKLB 공시 기반 재무 스냅샷", "", f"기준 시각: {bundle['meta']['analysis_as_of']}",
-             "자료: SEC Company Facts. 아래 수치는 공시 태그에서 코드로 추린 값이며 16단계 기업 분석은 아직 작성되지 않았습니다.",
-             "", "| 항목 | 값 | 기간 종료 | 출처 ID |", "| --- | ---: | --- | --- |"]
-    for metric in bundle["metrics"]["metrics"]:
-        if metric["status"] == "ok":
-            value = f"{metric['value']:,} {metric['unit']}" + (" (근사)" if metric["approximate"] else "")
-            lines.append(f"| {metric['metric_id']} | {value} | {metric['period_end']} | {', '.join(metric['source_ids'])} |")
-    lines.extend(["", "투자 판정: **판정 보류 (v0.1)**. 판정 엔진과 16단계 해석은 미구현입니다."])
-    (output / "report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_report(output)
 
 
 def main() -> int:
@@ -77,7 +70,7 @@ def main() -> int:
     if args.site_data:
         destination = ROOT / "site" / "data" / "companies" / ticker / args.engine
         destination.mkdir(parents=True, exist_ok=True)
-        for name in ("meta.json", "metrics.json", "sources.json", "decision.json", "report.md"):
+        for name in ("meta.json", "metrics.json", "sources.json", "decision.json", "report-items.json", "report.md"):
             source = output / name
             if source.exists():
                 shutil.copy2(source, destination / name)

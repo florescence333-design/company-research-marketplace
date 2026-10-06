@@ -14,6 +14,7 @@ test('static dashboard and RKLB detail show their actual data status', () => {
   if (existsSync(join(root, 'data/companies/RKLB/gpt/meta.json'))) {
     assert.match(company, /SEC Company Facts/);
     assert.doesNotMatch(company, /class="badge sample">샘플 데이터/);
+    if (existsSync(join(root, 'data/companies/RKLB/gpt/report-items.json'))) assert.match(company, /S16 최종 결론/);
   } else {
     assert.match(company, /샘플 데이터/);
   }

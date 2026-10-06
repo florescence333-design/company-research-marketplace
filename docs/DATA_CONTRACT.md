@@ -29,11 +29,13 @@
 | `dashboard.json` | 조립 코드 | meta·metrics·decision 참조와 표시 상태 | 3단계 |
 | `financials-analysis.json` | AI | 지표별 해석·한계·출처 | 4~5단계 |
 | `template-items.json`·`template-notes.json` | 템플릿 코드 | 섹션/항목 ID, 원본 대비 변경 이유 | 5단계 |
-| `report-items.json`·`report.md` | AI·조립 코드 | 고정 섹션 ID, 항목별 내용·출처·지표 참조 | 5단계 |
+| `report-items.json`·`report.md` | 조립 코드·후속 AI | Master Template의 16개 섹션 ID·제목·순서, 부분 작성/자료 확인 대기, 내용·출처·지표 참조 | 5단계 단순 연결 완료. AI 근거 검토는 후속 |
 | `diagrams/` | 시각화 코드 | 기준 보고서 실행 ID·해시 | 6단계 |
 | `validation.json` | 검증 코드 | 검사 결과, 산출물 해시, 게시 가능 여부 | 7단계 |
 
 위 예정 필드를 지금 존재하는 스키마나 구현으로 주장하지 않는다. 실제 데이터를 다루며 필요한 필드부터 확장하고 `v1-draft` 변경 이력을 이 문서에 추가한다. 세부 판정 기준이 없다는 상태와 실제 입력 데이터가 없다는 상태는 구별한다.
+
+5단계에서는 `meta.company_name`을 선택 필드로 추가하고 `report-items.schema.json`을 만들었다. `report-items.json`은 모든 섹션을 Master Template 순서대로 담고, 작성 상태와 사용한 지표·출처 ID를 적는다. 현재 내용은 SEC 숫자만으로 만들 수 있는 부분 보고서이며, 자료가 없는 섹션은 **자료 확인 대기**라고 명시한다. 수치 성장률은 코드에서 계산한다. 사업 경쟁력·밸류에이션·최종 매수/회피 판정은 작성하지 않는다.
 
 ## 로컬 실행
 

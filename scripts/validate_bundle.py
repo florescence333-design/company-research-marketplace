@@ -42,6 +42,14 @@ def validate_bundle(folder: Path) -> list[str]:
             for source_id in metric.get("source_ids", []):
                 if source_id not in sources:
                     errors.append(f"metrics.json/metrics/{index}/source_ids: 알 수 없는 {source_id}")
+    report_path = folder / "report-items.json"
+    if report_path.exists() and all(name in objects for name in REQUIRED):
+        from report import validate_report_items
+        try:
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            errors.extend(f"report-items.json: {error}" for error in validate_report_items(report, objects))
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"report-items.json: 읽기 실패: {exc}")
     return errors
 
 

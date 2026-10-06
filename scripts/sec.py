@@ -131,6 +131,7 @@ def build_sec_bundle(data, raw, engine, now):
     meta = {
         "schema_version": "v1-draft", "run_id": run_id, "data_snapshot_id": snapshot_id,
         "analysis_as_of": timestamp, "generated_at": timestamp, "ticker": "RKLB",
+        "company_name": data["entityName"],
         "cik": "0001819994", "exchange": "NASDAQ", "security_type": "Common Stock",
         "currency": "USD", "engine": engine, "model": None, "sample": False,
         "code_version": "v0.1", "template_version": template["source_sha256"],

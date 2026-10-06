@@ -79,7 +79,7 @@ const metricDisplay = (version, id) => {
           <div id="financial-rows" class="data-rows">{current.metrics.length ? current.metrics.map(m => <div><span>{m.metric_id}</span><strong>{m.status === 'ok' ? m.value : '확인 불가'}</strong></div>) : <span>아직 검증된 재무 수치가 없습니다.</span>}</div>
         </div>
         <div class="panel tab-panel" data-panel="2" hidden><h2>시각화</h2><p class="muted">플라이휠과 밸류체인 도식은 보고서 검증 후 생성됩니다.</p></div>
-        <div class="panel tab-panel" data-panel="3" hidden><h2>Master Template</h2><p class="muted">확정본 16개 섹션의 원본은 플러그인에 포함되어 있습니다. 기업별 세부 템플릿은 분석 단계에서 생성됩니다.</p></div>
+        <div class="panel tab-panel" data-panel="3" hidden><h2>Master Template</h2><p class="muted">확정본 16개 섹션의 ID·제목과 이 보고서의 작성 상태입니다.</p><div id="template-rows" class="data-rows">{current.reportItems.length ? current.reportItems.map(s => <div><span>{s.section_id} {s.title}</span><strong>{s.status === 'partial' ? '부분 작성' : '자료 확인 대기'}</strong></div>) : <span>실제 보고서 생성 대기</span>}</div></div>
         <div class="panel tab-panel" data-panel="4" hidden><h2>출처·데이터</h2><p class="muted">기준시점·수집 상태·출처를 함께 확인합니다.</p><div id="source-rows" class="data-rows">{current.sources.length ? current.sources.map(s => <div><span>{s.title}</span><a href={s.url} target="_blank" rel="noopener noreferrer">원문 ↗</a></div>) : <span>표시할 검증 출처가 없습니다.</span>}</div></div>
         <div class="panel tab-panel" data-panel="5" hidden><h2>두 엔진 비교</h2><p class="muted">같은 항목의 차이와 데이터 기준시점 차이를 보여줍니다.</p><div class="compare"><div><span>CLAUDE판</span><strong>{versions.claude ? versions.claude.decision.verdict : '미생성'}</strong></div><div><span>GPT판</span><strong>{versions.gpt ? versions.gpt.decision.verdict : '미생성'}</strong></div></div></div>
         <p class="page-footnote">판정 기준 v1의 세부 규칙이 미정입니다. 이 화면의 v0.1 보류 표시는 투자 권고가 아닙니다.</p>
@@ -100,6 +100,7 @@ const metricDisplay = (version, id) => {
       document.querySelector('#as-of').textContent = version.meta.analysis_as_of || '실제 데이터 수집 전';
       document.querySelector('#verdict-reason').textContent = version.decision.reason;
       document.querySelector('#report-text').textContent = version.report || '이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.';
+      document.querySelector('#template-rows').textContent = version.reportItems.length ? version.reportItems.map(s => `${s.section_id} ${s.title}: ${s.status === 'partial' ? '부분 작성' : '자료 확인 대기'}`).join(' / ') : '실제 보고서 생성 대기';
       document.querySelectorAll('[data-metric]').forEach(item => {
         const fact = version.metrics.find(metric => metric.metric_id === item.dataset.metric);
         item.textContent = fact?.status === 'ok' && typeof fact.value === 'number' ? fact.value.toLocaleString('ko-KR') + (fact.unit === '%' ? '%' : '') + (fact.approximate ? ' (근사)' : '') : '확인 불가';
