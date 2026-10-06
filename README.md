@@ -30,13 +30,11 @@ npm.cmd ci --prefix site
 
 ## 실제 RKLB 실행과 로컬 화면 — 첫 실행 약 2~5분
 
-SEC는 연락 가능한 이름과 이메일을 넣은 User-Agent를 요구한다. 아래 입력값은 채팅·저장소·문서에 적지 않는다. `Read-Host`에 본인의 연락처를 입력한다. Twelve Data 키는 이 경로에 필요하지 않다.
+SEC는 연락 가능한 이름과 이메일을 넣은 User-Agent를 요구한다. Windows의 사용자 환경변수 `SEC_USER_AGENT`를 시스템 설정에서 미리 등록한다. 값을 채팅·저장소·문서·터미널 출력에 적지 않는다. 아래 명령은 그 값을 현재 프로세스로 읽을 뿐 출력하지 않는다. Twelve Data 키는 이 경로에 필요하지 않다.
 
 ```powershell
-$ua = Read-Host 'SEC User-Agent (이름과 연락처 이메일)'
-[Environment]::SetEnvironmentVariable('SEC_USER_AGENT', $ua, 'User')
-$env:SEC_USER_AGENT = $ua
-Remove-Variable ua
+$env:SEC_USER_AGENT = [Environment]::GetEnvironmentVariable('SEC_USER_AGENT', 'User')
+if ([string]::IsNullOrWhiteSpace($env:SEC_USER_AGENT)) { throw 'SEC_USER_AGENT 사용자 환경변수를 먼저 설정하세요.' }
 .venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --new
 npm.cmd run dev --prefix site -- --host 127.0.0.1 --port 4321
 ```
