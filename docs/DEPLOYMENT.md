@@ -1,6 +1,6 @@
 # 사이트 배포 메모 — 현재 로컬 검증 상태
 
-사이트 코드는 `site/`에 있다. 현재 배포된 결과가 아니다. GitHub의 공개 플러그인 저장소와 비공개 사이트 저장소, Cloudflare 계정·Pages 프로젝트는 사용자 계정 로그인 후 구성해야 한다. 공개 플러그인 저장소에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 사이트 저장소는 비공개로 만들고 운영 자료는 그 저장소 안에서만 관리한다.
+사이트 코드는 `site/`에 있다. 현재 **RKLB 실제 SEC 수치가 들어간 로컬 빌드**까지 완료했고, 원격 배포는 아직 되지 않았다. GitHub의 공개 플러그인 저장소와 비공개 사이트 저장소, Cloudflare 계정·Pages 프로젝트는 사용자 계정 로그인 후 구성해야 한다. 공개 플러그인 저장소에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 사이트 저장소는 비공개로 만들고 운영 자료는 그 저장소 안에서만 관리한다.
 
 ## 로컬 화면
 
@@ -12,7 +12,16 @@ npm.cmd run build --prefix site
 npm.cmd run preview --prefix site -- --host 127.0.0.1 --port 4321
 ```
 
-화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. 일반 Astro 미리보기는 정적 화면 확인용이며 Cloudflare 비밀번호 미들웨어 검사는 아래 Pages 로컬 개발 서버에서 한다. 기본 데이터는 명시적으로 `샘플 데이터`라고 표시되고 투자 판정은 `판정 보류 (v0.1)`이다.
+화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. 일반 Astro 미리보기는 정적 화면 확인용이며 Cloudflare 비밀번호 미들웨어 검사는 아래 Pages 로컬 개발 서버에서 한다. SEC 수집 결과가 없으면 명시적으로 `샘플 데이터`라고 표시하고, 있으면 실제 수치·출처를 표시한다. 투자 판정은 언제나 `판정 보류 (v0.1)`이다.
+
+실제 RKLB 실행은 사용자 범위 `SEC_USER_AGENT` 환경변수를 현재 PowerShell 프로세스에서만 읽어 SEC에 전달한다. 값을 화면·로그·파일에 출력하지 않는다.
+
+```powershell
+$env:SEC_USER_AGENT=[Environment]::GetEnvironmentVariable('SEC_USER_AGENT','User')
+.venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --new
+```
+
+이 명령은 SEC 수집 → 16섹션 부분 보고서 → 매출 Mermaid 도식 → 검증 → 로컬 사이트 빌드·테스트까지 진행한다. 기존 결과를 다시 검증·게시하려면 `.venv\Scripts\python.exe scripts\publish.py RKLB --engine gpt --run-id <실행 폴더 이름>`을 쓴다. 검증 또는 빌드가 실패하면 `site/data/companies/RKLB/gpt/current.json`이 이전 선택 결과를 가리키도록 복구한다. `validation.json`의 `passed`는 로컬 구조·원본 재계산·해시 검사 결과이며 원격 배포 성공 표시가 아니다.
 
 ## Pages 인증 및 빌드 정보
 

@@ -5,6 +5,7 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
 import sys
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -97,7 +98,7 @@ def main() -> int:
     parser.add_argument("--engine", choices=("claude", "gpt"), required=True)
     parser.add_argument("--sample", action="store_true", help="Copy visibly synthetic RKLB example")
     parser.add_argument("--output", type=Path)
-    parser.add_argument("--site-data", action="store_true", help="Copy validated bundle to local ignored site/data")
+    parser.add_argument("--site-data", action="store_true", help="Compatibility alias; real runs publish locally by default")
     parser.add_argument("--no-viz", action="store_true")
     parser.add_argument("--viz-only", action="store_true")
     parser.add_argument("--original", action="store_true", help="Use the unmodified Master Template")
@@ -108,6 +109,8 @@ def main() -> int:
         parser.error("잘못된 옵션 조합: --new/--run-id, --no-viz/--viz-only, --viz-only/--original")
     if args.run_id and (not re.fullmatch(r"[A-Za-z0-9._-]+", args.run_id) or args.output):
         parser.error("--run-id는 안전한 실행 ID여야 하며 --output과 함께 사용할 수 없음")
+    if args.site_data and (args.sample or args.output):
+        parser.error("--site-data는 기본 실제 실행에서만 사용 가능")
     if args.viz_only and not args.run_id:
         parser.error("--viz-only는 --run-id로 기존 실행을 지정해야 함")
     ticker = args.ticker.upper()
@@ -162,24 +165,11 @@ def main() -> int:
         for error in errors:
             print(error, file=sys.stderr)
         return 1
-    if args.site_data:
-        destination = ROOT / "site" / "data" / "companies" / ticker / args.engine
-        destination.mkdir(parents=True, exist_ok=True)
-        for name in ("meta.json", "metrics.json", "sources.json", "decision.json", "report-items.json", "report.md"):
-            source = output / name
-            if source.exists():
-                shutil.copy2(source, destination / name)
-        diagram = output / "diagrams" / "revenue.mmd"
-        if diagram.exists():
-            (destination / "diagrams").mkdir(exist_ok=True)
-            shutil.copy2(diagram, destination / "diagrams" / "revenue.mmd")
-            shutil.copy2(output / "diagrams" / "manifest.json", destination / "diagrams" / "manifest.json")
-        else:
-            stale = destination / "diagrams"
-            for name in ("revenue.mmd", "manifest.json"):
-                (stale / name).unlink(missing_ok=True)
-            if stale.is_dir() and not any(stale.iterdir()):
-                stale.rmdir()
+    if not args.sample and args.output is None:
+        result = subprocess.run([sys.executable, str(ROOT / "scripts" / "publish.py"), ticker,
+                                 "--engine", args.engine, "--run-id", output.name], cwd=ROOT)
+        if result.returncode:
+            return result.returncode
     print(str(output))
     return 0
 

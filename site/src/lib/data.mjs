@@ -12,7 +12,14 @@ function readJson(path) {
 export function loadCompany(ticker = 'RKLB') {
   const versions = {};
   for (const engine of ['claude', 'gpt']) {
-    const folder = join(dataRoot, ticker, engine);
+    const engineRoot = join(dataRoot, ticker, engine);
+    const pointerPath = join(engineRoot, 'current.json');
+    let folder = engineRoot;
+    if (existsSync(pointerPath)) {
+      const pointer = readJson(pointerPath);
+      const version = pointer.version_id || pointer.run_id;
+      folder = /^[A-Za-z0-9._-]+$/.test(version || '') ? join(engineRoot, 'versions', version) : '';
+    }
     if (existsSync(join(folder, 'meta.json')) && existsSync(join(folder, 'decision.json'))) {
       versions[engine] = {
         meta: readJson(join(folder, 'meta.json')),

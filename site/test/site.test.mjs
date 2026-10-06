@@ -15,6 +15,11 @@ test('static dashboard and RKLB detail show their actual data status', () => {
     assert.match(company, /SEC Company Facts/);
     assert.doesNotMatch(company, /class="badge sample">샘플 데이터/);
     if (existsSync(join(root, 'data/companies/RKLB/gpt/report-items.json'))) assert.match(company, /S16 최종 결론/);
+    const pointerPath = join(root, 'data/companies/RKLB/gpt/current.json');
+    if (existsSync(pointerPath)) {
+      const pointer = JSON.parse(readFileSync(pointerPath, 'utf8'));
+      assert.ok(company.includes(pointer.run_id), 'built page must contain selected published run');
+    }
   } else {
     assert.match(company, /샘플 데이터/);
   }

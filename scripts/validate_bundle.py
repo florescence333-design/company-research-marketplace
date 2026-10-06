@@ -1,6 +1,7 @@
 """Validate a minimal company bundle against the v1 draft contract."""
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -63,6 +64,18 @@ def validate_bundle(folder: Path) -> list[str]:
     if (folder / "diagrams" / "manifest.json").exists():
         from visualize_run import verify_visualization
         errors.extend(verify_visualization(folder))
+    validation_path = folder / "validation.json"
+    if validation_path.exists():
+        try:
+            validation = json.loads(validation_path.read_text(encoding="utf-8"))
+            schema = json.loads((SCHEMAS / "validation.schema.json").read_text(encoding="utf-8"))
+            errors.extend(f"validation.json: {error.message}" for error in Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(validation))
+            if "meta" in objects and (validation.get("run_id") != objects["meta"].get("run_id") or validation.get("data_snapshot_id") != objects["meta"].get("data_snapshot_id")):
+                errors.append("validation.json: meta.json과 실행·스냅샷 ID 불일치")
+            if validation.get("report_sha256") != hashlib.sha256((folder / "report.md").read_bytes()).hexdigest():
+                errors.append("validation.json: 보고서 해시 불일치")
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"validation.json: 읽기 실패: {exc}")
     return errors
 
 
