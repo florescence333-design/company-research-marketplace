@@ -38,6 +38,10 @@ test('signed cookie grants access and version change revokes it', async () => {
   const authorized = await guard(ctx('https://example.test/data.json', secrets, cookie));
   assert.equal(authorized.status, 200);
   assert.equal(authorized.headers.get('Cache-Control'), 'private, no-store');
+  const csp = authorized.headers.get('Content-Security-Policy');
+  assert.match(csp, /script-src 'self' https:\/\/s3\.tradingview\.com;/);
+  assert.match(csp, /frame-src https:\/\/\*\.tradingview\.com https:\/\/tradingview-widget\.com https:\/\/\*\.tradingview-widget\.com;/);
+  assert.doesNotMatch(csp, /script-src[^;]*https:\/\/fonts\.googleapis\.com/);
   const revoked = await guard(ctx('https://example.test/data.json', { ...secrets, SESSION_VERSION: 'v2' }, cookie));
   assert.equal(revoked.status, 302);
 });

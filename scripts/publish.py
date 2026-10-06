@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from company import ROOT, verify_resume
+from market_snapshot import refresh_market_snapshot
 from validate_bundle import validate_bundle
 from verify_sec_run import verify_run
 
@@ -139,6 +140,7 @@ def activate_local(folder: Path, site_root: Path, build_callback):
 
 
 def build_site():
+    print(refresh_market_snapshot())
     subprocess.run(["npm.cmd", "run", "build", "--prefix", "site"], cwd=ROOT, check=True)
     subprocess.run(["npm.cmd", "test", "--prefix", "site"], cwd=ROOT, check=True)
 

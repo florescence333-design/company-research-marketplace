@@ -19,6 +19,15 @@ const metricDisplay = (version, id) => {
   if (!fact || fact.status !== 'ok' || typeof fact.value !== 'number') return '확인 불가';
   return `${fact.value.toLocaleString('ko-KR')}${fact.unit === '%' ? '%' : ''}${fact.approximate ? ' (근사)' : ''}`;
 };
+const snapshotDisplay = (version, id) => {
+  if (id === 'eps_ttm' || id === 'dividend_yield') return metricDisplay(version, id);
+  const value = version.market?.[id];
+  if (typeof value === 'string') return value;
+  if (id === 'range_52w') return value ? `${value.low.toFixed(2)}–${value.high.toFixed(2)}` : '확인 불가';
+  if (typeof value !== 'number') return '확인 불가';
+  if (id === 'market_cap') return `${(value / 1_000_000_000).toLocaleString('ko-KR', {maximumFractionDigits:2})}B`;
+  return value.toLocaleString('ko-KR', {maximumFractionDigits:2});
+};
 const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.metric_id) && m.status === 'ok' && typeof m.value === 'number').sort((a, b) => a.metric_id.localeCompare(b.metric_id));
 ---
 <Layout title="RKLB 분석 · Company Research">
@@ -63,10 +72,20 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
           </div>
         </section>
 
+        <section class="panel market-chart" aria-labelledby="price-chart-title">
+          <div class="chart-heading"><div><div class="eyebrow">Market / NASDAQ:RKLB</div><h2 id="price-chart-title">주가 차트</h2></div><span>TradingView 무료 위젯 · 표시 지연 가능</span></div>
+          <div class="tradingview-widget-container"><div id="tradingview-chart" class="tradingview-widget-container__widget">차트 불러오는 중</div><div class="tradingview-credit"><a href="https://www.tradingview.com/symbols/NASDAQ-RKLB/" target="_blank" rel="noopener nofollow noreferrer">RKLB chart by TradingView ↗</a></div></div>
+          <p id="market-as-of" class="market-as-of">{current.market?.as_of ? `아래 시장 수치는 ${current.market.as_of} 거래일 기준입니다.` : '시장 스냅샷 확인 불가 · TradingView 차트의 시점과 아래 SEC 수치는 다를 수 있습니다.'}</p>
+        </section>
+
         <div class="section-heading"><h2>시장·재무 스냅샷</h2><span class="muted">기준시점 값만 표시</span></div>
         <div class="metric-grid">
-          {cards.map(([label,id,unit]) => <div class="panel metric"><span>{label}</span><strong data-metric={id}>{metricDisplay(current,id)}</strong><small>{unit}</small></div>)}
+          {cards.map(([label,id,unit]) => <div class="panel metric"><span>{label}</span><strong data-metric={id}>{snapshotDisplay(current,id)}</strong><small>{unit}</small></div>)}
         </div>
+
+        <div class="section-heading"><h2>재무분석</h2><span class="muted">SEC metrics.json · 최근 공시 기준</span></div>
+        <div class="financial-grid" id="financial-cards">{current.dashboard.cards.map(card => <div class="panel financial-card"><span>{card.label}</span><strong>{card.value}</strong><small>{card.detail}</small></div>)}</div>
+        <div class="warning-line" id="warning-line"><span>경고 신호</span>{current.dashboard.warnings.length ? current.dashboard.warnings.map(warning => <strong>{warning}</strong>) : <strong>현재 계산 가능한 경고 없음</strong>}</div>
 
         <div class="tabs" role="tablist" aria-label="기업 분석 내용">
           {['보고서','재무','시각화','템플릿','출처·데이터','비교'].map((name, i) => <button type="button" role="tab" aria-selected={i === 0 ? 'true' : 'false'} data-tab={i} class={i === 0 ? 'active' : ''}>{name}</button>)}
@@ -112,6 +131,42 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
     const markdown = new Marked({ gfm: true });
     markdown.use({ renderer: { html() { return ''; } } });
     function safeMarkdown(source) { return DOMPurify.sanitize(markdown.parse(source || '')); }
+    function snapshotValue(version, id) {
+      if (id === 'eps_ttm' || id === 'dividend_yield') {
+        const fact = version.metrics.find(metric => metric.metric_id === id);
+        return fact?.status === 'ok' && typeof fact.value === 'number' ? fact.value.toLocaleString('ko-KR') + (fact.unit === '%' ? '%' : '') + (fact.approximate ? ' (근사)' : '') : '확인 불가';
+      }
+      const value = version.market?.[id];
+      if (typeof value === 'string') return value;
+      if (id === 'range_52w') return value ? `${value.low.toFixed(2)}–${value.high.toFixed(2)}` : '확인 불가';
+      if (typeof value !== 'number') return '확인 불가';
+      if (id === 'market_cap') return `${(value / 1_000_000_000).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}B`;
+      return value.toLocaleString('ko-KR', { maximumFractionDigits: 2 });
+    }
+    function renderFinancialDashboard(dashboard) {
+      const cards = document.querySelector('#financial-cards');
+      cards.replaceChildren(...dashboard.cards.map(card => {
+        const item = document.createElement('div'); item.className = 'panel financial-card';
+        const label = document.createElement('span'); label.textContent = card.label;
+        const value = document.createElement('strong'); value.textContent = card.value;
+        const detail = document.createElement('small'); detail.textContent = card.detail;
+        item.append(label, value, detail); return item;
+      }));
+      const warnings = document.querySelector('#warning-line');
+      const heading = document.createElement('span'); heading.textContent = '경고 신호';
+      warnings.replaceChildren(heading, ...(dashboard.warnings.length ? dashboard.warnings : ['현재 계산 가능한 경고 없음']).map(line => { const item = document.createElement('strong'); item.textContent = line; return item; }));
+    }
+    function mountTradingView() {
+      const host = document.querySelector('#tradingview-chart');
+      host.replaceChildren();
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+      script.textContent = JSON.stringify({ autosize: true, symbol: 'NASDAQ:RKLB', interval: 'D', timezone: 'exchange', theme: 'dark', style: '1', locale: 'en', hide_side_toolbar: true, allow_symbol_change: false, save_image: false, calendar: false });
+      script.onerror = () => { host.textContent = '차트를 불러오지 못했습니다. TradingView에서 RKLB 차트를 확인하세요.'; };
+      host.append(script);
+    }
+    mountTradingView();
     function renderTemplate(source) {
       const target = document.querySelector('#template-render');
       const fallback = document.querySelector('#template-text');
@@ -258,9 +313,10 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
       document.querySelector('#template-text').textContent = version.template || 'S0.5 커스텀 템플릿 작성 대기';
       renderTemplate(version.template);
       document.querySelectorAll('[data-metric]').forEach(item => {
-        const fact = version.metrics.find(metric => metric.metric_id === item.dataset.metric);
-        item.textContent = fact?.status === 'ok' && typeof fact.value === 'number' ? fact.value.toLocaleString('ko-KR') + (fact.unit === '%' ? '%' : '') + (fact.approximate ? ' (근사)' : '') : '확인 불가';
+        item.textContent = snapshotValue(version, item.dataset.metric);
       });
+      document.querySelector('#market-as-of').textContent = version.market?.as_of ? `아래 시장 수치는 ${version.market.as_of} 거래일 기준입니다.` : '시장 스냅샷 확인 불가 · TradingView 차트의 시점과 아래 SEC 수치는 다를 수 있습니다.';
+      renderFinancialDashboard(version.dashboard);
       document.querySelector('#financial-rows').textContent = version.metrics.length ? version.metrics.map(m => `${m.metric_id}: ${m.status === 'ok' ? m.value : '확인 불가'}`).join(' / ') : '아직 검증된 재무 수치가 없습니다.';
       const annual = version.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.metric_id) && m.status === 'ok' && typeof m.value === 'number').sort((a, b) => a.metric_id.localeCompare(b.metric_id));
       document.querySelector('#revenue-bars').replaceChildren(...annual.map(m => { const row = document.createElement('div'); row.className = 'revenue-bar'; const year = document.createElement('span'); year.textContent = m.metric_id.slice(-4); const track = document.createElement('div'); const bar = document.createElement('i'); bar.style.width = `${Math.max(2, Math.round(m.value / Math.max(...annual.map(x => x.value)) * 100))}%`; track.append(bar); const value = document.createElement('strong'); value.textContent = `${(m.value / 1_000_000).toFixed(1)}M USD`; row.append(year, track, value); return row; }));
@@ -285,11 +341,27 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
   .decision-side strong { font-weight:500; color:#e0eee2; }
   .section-heading { display:flex; align-items:center; justify-content:space-between; margin:40px 0 15px; }
   .section-heading span { font-size:11px; }
+  .market-chart { margin-top:18px; padding:20px; }
+  .chart-heading { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; }
+  .chart-heading h2 { margin-top:7px; }
+  .chart-heading span { color:#819e90; font-size:11px; }
+  .tradingview-widget-container { width:100%; min-width:0; }
+  .tradingview-widget-container__widget { height:330px; width:100%; background:#101918; color:#819e90; display:grid; place-items:center; font-size:12px; }
+  .tradingview-credit { color:#86b9aa; font-size:10px; margin-top:8px; text-align:right; }
+  .market-as-of { color:#9cb3a7; font-size:11px; margin:8px 0 0; }
   .metric-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
   .metric { min-height:103px; padding:18px; display:flex; flex-direction:column; }
   .metric span { color:#85a094; font-size:11px; }
   .metric strong { font:500 18px 'IBM Plex Mono','Noto Sans KR'; margin-top:13px; }
   .metric small { color:#6d867b; font-size:10px; margin-top:2px; }
+  .financial-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .financial-card { min-width:0; min-height:118px; padding:17px; display:flex; flex-direction:column; }
+  .financial-card span { color:#8caa99; font-size:11px; }
+  .financial-card strong { color:#dcebe0; font:500 16px/1.5 'IBM Plex Mono','Noto Sans KR'; margin-top:10px; overflow-wrap:anywhere; }
+  .financial-card small { color:#8da597; font-size:10px; line-height:1.5; margin-top:auto; padding-top:8px; overflow-wrap:anywhere; }
+  .warning-line { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-top:13px; }
+  .warning-line span { color:#b7cbbc; font-size:11px; margin-right:4px; }
+  .warning-line strong { border:1px solid #735641; border-radius:6px; padding:7px 9px; color:#e6c39d; background:#2c2821; font-size:10px; font-weight:500; }
   .tabs { display:flex; gap:25px; border-bottom:1px solid #354b41; overflow:auto; margin-top:47px; }
   .tabs button { border:0; border-bottom:2px solid transparent; background:transparent; color:#7d968a; white-space:nowrap; padding:0 1px 14px; font-size:12px; }
   .tabs button.active { border-color:#b6e4c7; color:#d9f3e3; }
@@ -355,5 +427,6 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
   .compare span { font:11px 'IBM Plex Mono'; color:#8aa99a; }
   .compare strong { font-size:16px; }
   .page-footnote { color:#6e867a; font-size:10px; margin-top:20px; }
-  @media(max-width:720px) { .intro-row { display:block; } .engine-switch { display:inline-flex; margin-top:20px; } .decision-panel { display:block; } .decision-side { border-left:0; border-top:1px solid #496356; padding:18px 0 0; margin-top:20px; } .metric-grid { grid-template-columns:repeat(2,1fr); } .status-line .muted { margin-left:0; width:100%; } }
+  @media(max-width:720px) { .intro-row { display:block; } .engine-switch { display:inline-flex; margin-top:20px; } .decision-panel { display:block; } .decision-side { border-left:0; border-top:1px solid #496356; padding:18px 0 0; margin-top:20px; } .metric-grid,.financial-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .chart-heading { align-items:start; flex-direction:column; } .tradingview-widget-container__widget { height:285px; } .status-line .muted { margin-left:0; width:100%; } }
+  @media(max-width:430px) { .metric-grid,.financial-grid { grid-template-columns:1fr; } .metric,.financial-card { min-height:90px; } .report-toc { grid-template-columns:1fr; } .tab-panel { padding:20px 16px; } }
 </style>

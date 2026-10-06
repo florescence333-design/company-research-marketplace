@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -46,7 +47,21 @@ def export_site(destination: Path):
         target_root.mkdir(parents=True, exist_ok=True)
         shutil.copy2(pointer_path, target_root / "current.json")
         copied.append(str((target_root / "current.json").relative_to(destination)))
-    (destination / ".gitignore").write_text("node_modules/\ndist/\n.astro/\n.wrangler/\n.dev.vars\n.dev.vars.*\n.env\n.env.*\npublic/build-info.json\n", encoding="utf-8")
+    market_source = ROOT / "site" / "data" / "market-snapshot.json"
+    market_target = destination / "data" / "market-snapshot.json"
+    # The individual API tiers may not grant external display or redistribution rights.
+    # Keep the private-site checkout free of provider prices until those rights are verified.
+    if market_source.exists() and os.environ.get("TWELVE_DATA_DISPLAY_ALLOWED") == "1":
+        market = json.loads(market_source.read_text(encoding="utf-8"))
+        allowed = {"source", "as_of", "price", "market_cap", "pe_ttm", "range_52w", "fetched_at"}
+        if set(market) - allowed or market.get("source") != "Twelve Data":
+            raise ValueError("시장 스냅샷 필드·출처 검증 실패")
+        market_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(market_source, market_target)
+        copied.append(str(market_target.relative_to(destination)))
+    else:
+        market_target.unlink(missing_ok=True)
+    (destination / ".gitignore").write_text("node_modules/\ndist/\n.astro/\n.wrangler/\n.uv-cache/\n.dev.vars\n.dev.vars.*\n.env\n.env.*\npublic/build-info.json\n", encoding="utf-8")
     (destination / "README.md").write_text("# Private Company Research Site\n\nThis checkout contains the password-protected Astro Pages site and selected SEC-sourced RKLB data. Keep the GitHub repository private. Build: `npm ci && npm run build`; Cloudflare Pages output: `dist`. Configure AUTH_PASSWORD, SESSION_SECRET, and SESSION_VERSION in production and preview environments. See the public plugin repository's docs/DEPLOYMENT.md for validation steps.\n", encoding="utf-8")
     return copied
 

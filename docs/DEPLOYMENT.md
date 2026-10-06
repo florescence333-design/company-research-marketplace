@@ -16,12 +16,14 @@ npm.cmd run preview --prefix site -- --host 127.0.0.1 --port 4321
 
 실제 RKLB 실행은 사용자 범위 `SEC_USER_AGENT` 환경변수를 현재 PowerShell 프로세스에서만 읽어 SEC에 전달한다. 값을 화면·로그·파일에 출력하지 않는다.
 
+선택적 `TWELVE_DATA_API_KEY`가 있으면 주가와 52주 범위 등 제공되는 시장 스냅샷을 로컬에서 조회한다. 키는 인증 헤더에만 쓰고 저장·출력하지 않는다. `market-snapshot.json`에는 정규화한 숫자와 시각만 기록한다. Twelve Data의 개인 요금제는 외부 표시·재배포 범위가 제한될 수 있으므로, 계정의 사이트 표시 권한이 확인되기 전에는 `scripts/export_site.py`가 이 파일을 원격 사이트 저장소로 내보내지 않는다. 권한을 확인한 경우에만 배포 실행 환경에서 `TWELVE_DATA_DISPLAY_ALLOWED=1`을 설정한다. 값이 없거나 API 항목이 미제공이면 화면은 `확인 불가`를 표시한다.
+
 ```powershell
 $env:SEC_USER_AGENT=[Environment]::GetEnvironmentVariable('SEC_USER_AGENT','User')
 .venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --new
 ```
 
-이 명령은 SEC 수집 → 16섹션 부분 보고서 → 매출 Mermaid 도식 → 검증 → 로컬 사이트 빌드·테스트까지 진행한다. 기존 결과를 다시 검증·게시하려면 `.venv\Scripts\python.exe scripts\publish.py RKLB --engine gpt --run-id <실행 폴더 이름>`을 쓴다. 검증 또는 빌드가 실패하면 `site/data/companies/RKLB/gpt/current.json`이 이전 선택 결과를 가리키도록 복구한다. `validation.json`의 `passed`는 로컬 구조·원본 재계산·해시 검사 결과이며 원격 배포 성공 표시가 아니다.
+이 명령은 SEC 수집 → 코드 초안 → S0.5 커스텀 템플릿 → 섹션 묶음 분석 → 보고서 근거 플라이휠·가치사슬 → 검증 → 로컬 사이트 빌드·테스트 순서다. 기존 결과를 다시 검증·게시하려면 `.venv\Scripts\python.exe scripts\publish.py RKLB --engine gpt --run-id <실행 폴더 이름>`을 쓴다. 검증 또는 빌드가 실패하면 `site/data/companies/RKLB/gpt/current.json`이 이전 선택 결과를 가리키도록 복구한다. `validation.json`의 `passed`는 로컬 구조·원본 재계산·해시 검사 결과이며 원격 배포 성공 표시가 아니다.
 
 ## Pages 인증 및 빌드 정보
 
