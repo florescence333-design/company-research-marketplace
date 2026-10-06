@@ -1,6 +1,6 @@
-# 사이트 배포 메모 — 현재 로컬 검증 상태
+# 사이트 배포 메모 — 운영·dev 첫 배포 상태
 
-사이트 코드는 `site/`에 있다. 현재 **RKLB 실제 SEC 수치가 들어간 로컬 빌드**까지 완료했고, 원격 Pages 배포는 아직 되지 않았다. 공개 플러그인 저장소 [`florescence333-design/company-research-marketplace`](https://github.com/florescence333-design/company-research-marketplace)와 비공개 사이트 저장소 `florescence333-design/company-research-site`의 `main`·`dev` 푸시는 완료했다. 공개 플러그인 저장소에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 운영 자료는 비공개 사이트 저장소 안에서만 관리한다.
+사이트 코드는 `site/`에 있다. **RKLB 실제 SEC 수치와 Claude·Codex의 검증된 AI 보고서가 들어간 로컬 빌드**를 완료했다. 비공개 사이트 저장소 `florescence333-design/company-research-site`의 `main` 운영 배포(`c80294f`)와 `dev` 미리보기 배포(`a551e94`)는 Cloudflare Pages에서 빌드 성공했다. `dev` 별칭은 [dev.company-research-site.pages.dev](https://dev.company-research-site.pages.dev), 배포별 고유 주소는 [db9c0c9f.company-research-site.pages.dev](https://db9c0c9f.company-research-site.pages.dev)다. 공개 `/build-info.json`은 `dev` 커밋 전체 해시 `a551e9453f6da51333aec53e9f40c7ace5f6d285`를 반환했다. **운영·미리보기 환경의 인증 비밀 값은 아직 설정되지 않아 `/login`과 보호 경로가 503이며, 실제 사이트 사용과 로그인 검증은 미완료다.** 공개 플러그인 저장소 [`florescence333-design/company-research-marketplace`](https://github.com/florescence333-design/company-research-marketplace)에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 운영 자료는 비공개 사이트 저장소 안에서만 관리한다.
 
 ## 로컬 화면
 
@@ -28,6 +28,8 @@ $env:SEC_USER_AGENT=[Environment]::GetEnvironmentVariable('SEC_USER_AGENT','User
 사이트 저장소에서는 프로젝트 루트를 사이트 코드로 지정하고 빌드 명령 `npm ci && npm run build`, 출력 폴더 `dist`를 사용한다. `functions/_middleware.js`가 로그인 페이지와 정확한 `/build-info.json` 경로 외의 정적 파일·분석 데이터를 보호한다. 운영·dev 미리보기·배포별 고유 주소에서 인증 없이 HTML과 분석 JSON이 노출되지 않는지 각각 확인한다.
 
 Cloudflare Pages의 운영과 미리보기 환경에 다음 비밀 설정을 각각 입력한다. 값은 저장소·문서·명령행 인자에 기록하지 않는다.
+
+Cloudflare 대시보드에서 프로젝트 **Settings → Variables and secrets**로 이동해 `Production`과 `Preview`에 각각 등록한다. `AUTH_PASSWORD`는 두 환경에 같은 비밀번호를 쓰고, `SESSION_SECRET`은 긴 무작위 값을 각 환경에 저장한다. 값을 저장한 뒤 다음 배포에서 적용되는지 확인한다. Pages Functions의 **Fail open/closed**는 `Fail closed`로 설정해 함수 사용량 한도에 도달했을 때 정적 분석 파일이 노출되지 않게 한다(2026-10-07 대시보드에서 설정 확인).
 
 - `AUTH_PASSWORD`: 비밀번호 생성기로 만든 충분히 긴 무작위 문자열
 - `SESSION_SECRET`: 독립적으로 생성한 긴 무작위 서명 비밀
@@ -57,4 +59,4 @@ cd site
 npx.cmd wrangler pages dev dist --port 8788 --ip 127.0.0.1
 ```
 
-다른 PowerShell 창의 저장소 루트에서 `node site/scripts/check-local-auth.mjs`를 실행하면 공개 빌드 정보·보호 경로·서명 쿠키·변조 쿠키를 검사한다. 실제 Cloudflare Pages 배포 확인은 계정·프로젝트 준비 후 수행한다.
+다른 PowerShell 창의 저장소 루트에서 `node site/scripts/check-local-auth.mjs`를 실행하면 공개 빌드 정보·보호 경로·서명 쿠키·변조 쿠키를 검사한다. 인증 비밀 설정 후 운영·dev 별칭·dev 배포별 고유 주소에서 위의 배포 검사와 로그인 후 화면 확인을 다시 수행한다.
