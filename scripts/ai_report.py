@@ -7,6 +7,7 @@ from pathlib import Path
 
 from company import write_run_state
 from report import build_report_items, render_report, validate_report_items
+from template_stage import validate_template
 from validate_bundle import validate_bundle
 from visualize_run import build_visualization
 
@@ -18,19 +19,21 @@ def read_json(path: Path):
 def validate_ai_changes(report, bundle, section_ids=None):
     errors = validate_report_items(report, bundle)
     baseline = build_report_items(bundle)
+    items = {item["section_id"]: item for section in report.get("sections", [])
+             for item in [section, *section.get("subsections", [])]}
+    baseline_items = {item["section_id"]: item for item in baseline["sections"]}
     selected = set(section_ids) if section_ids else None
     if selected is not None:
-        known = {section["section_id"] for section in baseline["sections"]}
+        known = set(items)
         if selected - known:
             errors.append("알 수 없는 선택 섹션: " + ", ".join(sorted(selected - known)))
-    changed = sum(new.get("body") != old["body"] for new, old in zip(report.get("sections", []), baseline["sections"])
-                  if selected is None or new.get("section_id") in selected)
+    changed = sum(item.get("body") != baseline_items.get(sid, {}).get("body")
+                  for sid, item in items.items() if selected is None or sid in selected)
     if changed < (len(selected) if selected else 3):
         errors.append("선택 섹션 전부 또는 전체 실행의 3개 이상을 실질 수정해야 함")
-    for section in report.get("sections", []):
-        if selected is not None and section.get("section_id") not in selected:
+    for section_id, section in items.items():
+        if selected is not None and section_id not in selected:
             continue
-        section_id = section.get("section_id")
         if not section.get("search_queries"):
             errors.append(f"{section_id}: 웹 검색어 기록 없음")
         if section.get("status") == "partial" and not section.get("source_ids"):
@@ -50,7 +53,7 @@ def validate_ai_changes(report, bundle, section_ids=None):
     return errors
 
 
-def finalize(folder: Path, model: str, section_ids=None):
+def finalize(folder: Path, model: str, section_ids=None, checkpoint=False):
     if not model.strip():
         raise ValueError("AI 실행 모델 식별자가 필요함")
     meta = read_json(folder / "meta.json")
@@ -60,25 +63,40 @@ def finalize(folder: Path, model: str, section_ids=None):
               for name in ("meta", "metrics", "sources", "decision", "extracted-facts")}
     report = read_json(folder / "report-items.json")
     errors = validate_ai_changes(report, bundle, section_ids)
+    if (folder / "template-notes.json").exists():
+        errors.extend(validate_template(folder))
+        if not errors:
+            notes = read_json(folder / "template-notes.json")
+            for parent in notes["sections"]:
+                report_parent = next((s for s in report["sections"] if s["section_id"] == parent["section_id"]), None)
+                actual = {s["section_id"] for s in report_parent.get("subsections", [])} if report_parent else set()
+                expected = {s["section_id"] for s in parent["subsections"]}
+                if actual != expected:
+                    errors.append(f"{parent['section_id']}: 커스텀 하위 섹션 불일치")
     if errors:
         raise ValueError("; ".join(errors))
     run = read_json(folder / "run.json")
     original = {}
     affected = [folder / name for name in ("meta.json", "report.md", "run.json", "validation.json",
-                                            "diagrams/manifest.json", "diagrams/revenue.mmd", "review-only.json")]
+                                            "diagrams/manifest.json", "diagrams/flywheel.mmd", "diagrams/value-chain.mmd", "review-only.json", "analysis-progress.json")]
     for path in affected:
         original[path] = path.read_bytes() if path.exists() else None
     try:
-        meta["model"] = model
+        if not checkpoint:
+            meta["model"] = model
         (folder / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         (folder / "report.md").write_text(render_report(report, bundle), encoding="utf-8")
         (folder / "validation.json").unlink(missing_ok=True)
         no_viz = run["options"].get("no_viz", False)
-        if not no_viz:
+        if not checkpoint and not no_viz and (folder / "diagrams" / "spec.json").exists():
             build_visualization(folder)
         write_run_state(folder, no_viz, run["options"].get("original", False))
         review_marker = folder / "review-only.json"
-        if section_ids:
+        if checkpoint:
+            progress = read_json(folder / "analysis-progress.json") if (folder / "analysis-progress.json").exists() else {"completed_sections": []}
+            progress["completed_sections"] = sorted(set(progress["completed_sections"]) | set(section_ids or []))
+            (folder / "analysis-progress.json").write_text(json.dumps(progress, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        elif section_ids:
             review_marker.write_text(json.dumps({"sections": sorted(set(section_ids))}, ensure_ascii=False) + "\n", encoding="utf-8")
         else:
             review_marker.unlink(missing_ok=True)
@@ -101,9 +119,12 @@ def main():
     parser.add_argument("bundle", type=Path)
     parser.add_argument("--model", required=True, help="Actual AI provider/model label; use claude-code if exact model unknown")
     parser.add_argument("--sections", nargs="+", help="Only validate these reanalyzed section IDs; review runs only")
+    parser.add_argument("--checkpoint", action="store_true", help="Save a researched section bundle; requires --sections")
     args = parser.parse_args()
     try:
-        print(finalize(args.bundle, args.model, args.sections))
+        if args.checkpoint and not args.sections:
+            parser.error("--checkpoint requires --sections")
+        print(finalize(args.bundle, args.model, args.sections, args.checkpoint))
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         parser.error(str(exc))
 

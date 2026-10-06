@@ -18,7 +18,17 @@
         "source_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "search_queries": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "metric_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-        "fact_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        "fact_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "subsections": {"type": "array", "items": {"type": "object", "required": ["section_id", "title", "status", "body", "source_ids", "metric_ids"], "properties": {
+          "section_id": {"type": "string", "pattern": "^S(?:0[1-9]|1[0-6])-[A-Z]$"},
+          "title": {"type": "string", "minLength": 1},
+          "status": {"enum": ["partial", "unavailable"]},
+          "body": {"type": "string", "minLength": 1},
+          "source_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "search_queries": {"type": "array", "items": {"type": "string", "minLength": 1}},
+          "metric_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+          "fact_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        }, "additionalProperties": false}}
       },
       "additionalProperties": false
     }}

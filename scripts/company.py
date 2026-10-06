@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from report import write_report
+from template_stage import create_template_draft, validate_template
 from sec import build_sec_bundle, fetch_10k, fetch_companyfacts
 from validate_bundle import validate_bundle
 from visualize_run import build_visualization, verify_visualization
@@ -27,9 +28,12 @@ def file_hash(path: Path) -> str:
 
 def write_run_state(output: Path, no_viz: bool, original: bool) -> None:
     meta = json.loads((output / "meta.json").read_text(encoding="utf-8"))
+    template_ready = not original and not validate_template(output)
+    viz_ready = not no_viz and (output / "diagrams" / "manifest.json").exists()
     steps = [
         {"step_id": "S0", "state": "completed"},
-        {"step_id": "S0.5", "state": "completed"},
+        {"step_id": "S0.5", "state": "completed" if template_ready else "pending",
+         "reason": "커스텀 템플릿 검증 완료" if template_ready else "웹 리서치 기반 커스텀 템플릿 작성 대기"},
         {"step_id": "S1", "state": "completed", "output_sha256": file_hash(output / "sources.json")},
         {"step_id": "S2", "state": "completed", "output_sha256": file_hash(output / "metrics.json")},
         {"step_id": "S3", "state": "completed" if (output / "extracted-facts.json").exists() and
@@ -37,9 +41,9 @@ def write_run_state(output: Path, no_viz: bool, original: bool) -> None:
          "reason": "2025 10-K 일부 사업 사실만 추출; 나머지는 자료 확인 대기"},
         {"step_id": "S4", "state": "completed", "input_sha256": file_hash(output / "metrics.json"),
          "output_sha256": file_hash(output / "report.md"), "reason": "부분 보고서; 판정 보류 (v0.1)"},
-        {"step_id": "S5", "state": "pending" if no_viz else "completed",
-         "reason": "--no-viz 요청" if no_viz else "검증된 매출 추이 도식만 생성",
-         **({} if no_viz else {"input_sha256": file_hash(output / "report.md"), "output_sha256": file_hash(output / "diagrams" / "revenue.mmd")})},
+        {"step_id": "S5", "state": "completed" if viz_ready else "pending",
+         "reason": "보고서 기반 플라이휠·밸류체인 완료" if viz_ready else "AI 보고서 완료 후 생성 대기",
+         **({"input_sha256": file_hash(output / "report.md"), "output_sha256": file_hash(output / "diagrams" / "manifest.json")} if viz_ready else {})},
         {"step_id": "S6", "state": "pending", "reason": "전체 게시 검증 전"},
         {"step_id": "S7", "state": "pending", "reason": "원격 게시 전"},
     ]
@@ -55,7 +59,9 @@ def verify_resume(output: Path, ticker: str, engine: str) -> dict:
     if meta["ticker"] != ticker or meta["engine"] != engine or run["run_id"] != meta["run_id"]:
         raise ValueError("재개 대상의 티커·엔진·실행 ID 불일치")
     for step in run["steps"]:
-        path = {"S1": "sources.json", "S2": "metrics.json", "S4": "report.md", "S5": "diagrams/revenue.mmd"}.get(step["step_id"])
+        path = {"S1": "sources.json", "S2": "metrics.json", "S4": "report.md", "S5": "diagrams/manifest.json"}.get(step["step_id"])
+        if step["step_id"] == "S5" and step.get("reason") == "검증된 매출 추이 도식만 생성":
+            path = "diagrams/revenue.mmd"  # legacy run verification
         if step["state"] == "completed" and path and step.get("output_sha256") != file_hash(output / path):
             raise ValueError(f"{step['step_id']} 출력 해시 불일치; 새 실행 필요")
     return run
@@ -98,6 +104,7 @@ def write_real_run(output: Path, engine: str) -> None:
     for name, obj in bundle.items():
         (output / f"{name}.json").write_text(json.dumps(obj, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     write_report(output)
+    create_template_draft(output)
 
 
 def main() -> int:
@@ -163,8 +170,6 @@ def main() -> int:
     else:
         try:
             write_real_run(output, args.engine)
-            if not args.no_viz:
-                build_visualization(output)
             write_run_state(output, args.no_viz, args.original)
         except (OSError, ValueError, RuntimeError) as exc:
             parser.error(str(exc))

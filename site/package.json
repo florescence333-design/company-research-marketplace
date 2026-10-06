@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "astro": "7.3.6",
-    "mermaid": "^11.16.1"
+    "mermaid": "^11.16.1",
+    "marked": "16.4.2",
+    "dompurify": "3.4.16"
   },
   "overrides": {
     "katex": "0.18.2"

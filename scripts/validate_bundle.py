@@ -69,6 +69,23 @@ def validate_bundle(folder: Path) -> list[str]:
                 errors.append("report-items.json: 보고서 본문과 report.md 불일치")
         except (OSError, KeyError, json.JSONDecodeError) as exc:
             errors.append(f"report-items.json: 읽기 실패: {exc}")
+    if (folder / "template-notes.json").exists():
+        try:
+            from template_stage import validate_template
+            notes = json.loads((folder / "template-notes.json").read_text(encoding="utf-8"))
+            if notes.get("status") == "completed":
+                errors.extend(validate_template(folder))
+                if report_path.exists():
+                    report = json.loads(report_path.read_text(encoding="utf-8"))
+                    for framework, section in zip(notes["sections"], report["sections"]):
+                        expected = [s["section_id"] for s in framework["subsections"]]
+                        actual = [s["section_id"] for s in section.get("subsections", [])]
+                        if expected != actual:
+                            errors.append(f"{section['section_id']}: 커스텀 하위 섹션과 보고서 불일치")
+            elif notes.get("status") != "draft":
+                errors.append("template-notes.json: 알 수 없는 작성 상태")
+        except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
+            errors.append(f"template-notes.json: 읽기 실패: {exc}")
     run_path = folder / "run.json"
     if run_path.exists():
         try:

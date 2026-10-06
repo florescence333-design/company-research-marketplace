@@ -133,8 +133,14 @@ def validate_report_items(report, bundle):
     for index, (expected, actual) in enumerate(zip(TEMPLATE, report.get("sections", []))):
         if (actual.get("section_id"), actual.get("title")) != (expected["section_id"], expected["title"]):
             errors.append(f"섹션 {index + 1} ID·제목·순서 불일치")
-        if set(actual.get("source_ids", [])) - source_ids or set(actual.get("metric_ids", [])) - metric_ids or set(actual.get("fact_ids", [])) - fact_ids:
-            errors.append(f"섹션 {index + 1} 알 수 없는 출처·지표 ID")
+        seen = set()
+        for item in [actual, *actual.get("subsections", [])]:
+            sid = item.get("section_id", "")
+            if sid in seen or (item is not actual and not sid.startswith(actual.get("section_id", "") + "-")):
+                errors.append(f"섹션 {index + 1} 하위 ID 중복 또는 부모 불일치")
+            seen.add(sid)
+            if set(item.get("source_ids", [])) - source_ids or set(item.get("metric_ids", [])) - metric_ids or set(item.get("fact_ids", [])) - fact_ids:
+                errors.append(f"섹션 {sid} 알 수 없는 출처·지표 ID")
     if len(report.get("sections", [])) != len(TEMPLATE):
         errors.append("16개 섹션 수 불일치")
     return errors
@@ -145,11 +151,12 @@ def render_report(report, bundle):
              f"기준시각: {bundle['meta']['analysis_as_of']} · 데이터 스냅샷: {bundle['meta']['data_snapshot_id']}",
              "이 보고서는 SEC 공시 수치 중심의 초기 결과다. 자료 확인 대기 섹션은 결론으로 간주하지 않는다.", ""]
     for section in report["sections"]:
-        lines.extend([f"## {section['section_id']} {section['title']}", "",
-                      f"상태: {'부분 작성' if section['status'] == 'partial' else '자료 확인 대기'}", "",
-                      section["body"], ""])
-        if section["source_ids"]:
-            lines.extend(["출처 ID: " + ", ".join(section["source_ids"]), ""])
+        for item, level in [(section, "##"), *[(sub, "###") for sub in section.get("subsections", [])]]:
+            lines.extend([f"{level} {item['section_id']} {item['title']}", "",
+                          f"상태: {'부분 작성' if item['status'] == 'partial' else '자료 확인 대기'}", "",
+                          item["body"], ""])
+            if item["source_ids"]:
+                lines.extend(["출처 ID: " + ", ".join(item["source_ids"]), ""])
     lines.extend(["---", "", "최종 판정: **판정 보류 (v0.1)**", ""])
     return "\n".join(lines)
 

@@ -20,6 +20,7 @@ __pycache__/
 # Private analysis inputs, outputs, and execution notes
 runs/
 data/
+docs/reference/
 .superpowers/
 .claude/
 

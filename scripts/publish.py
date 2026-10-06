@@ -58,6 +58,8 @@ def check_bundle(folder):
         errors.append("합성 샘플 게시 금지")
     if (folder / "review-only.json").exists():
         errors.append("일부 섹션 검토본은 전체 보고서로 게시할 수 없음")
+    if (folder / "analysis-progress.json").exists() and meta.get("model") is None:
+        errors.append("섹션 묶음 작성 중인 보고서는 완료본으로 게시할 수 없음")
     try:
         verify_resume(folder, meta["ticker"], meta["engine"])
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
@@ -91,7 +93,7 @@ def activate_local(folder: Path, site_root: Path, build_callback):
     if not re.fullmatch(r"[A-Za-z0-9._-]+", run_id):
         raise ValueError("안전하지 않은 실행 ID")
     report_hash = hashlib.sha256((folder / "report.md").read_bytes()).hexdigest()
-    diagram_path = folder / "diagrams" / "revenue.mmd"
+    diagram_path = folder / "diagrams" / "manifest.json"
     diagram_hash = hashlib.sha256(diagram_path.read_bytes()).hexdigest() if diagram_path.exists() else "no-viz"
     version_id = f"{run_id}-{hashlib.sha256((report_hash + diagram_hash).encode()).hexdigest()[:10]}"
     site_root = site_root.resolve()

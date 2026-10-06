@@ -13,7 +13,7 @@ test('static dashboard and RKLB detail show their actual data status', () => {
   const company = readFileSync(join(root, 'dist/company/RKLB/index.html'), 'utf8');
   assert.match(index, /RKLB/);
   assert.match(company, /판정 보류 \(v0\.1\)/);
-  const base = join(root, 'data/companies/RKLB');
+  const base = process.env.SITE_DATA_DIR ? join(process.env.SITE_DATA_DIR, 'RKLB') : join(root, 'data/companies/RKLB');
   const selectedEngine = ['gpt', 'claude'].find(engine => existsSync(join(base, engine, 'current.json'))) || 'gpt';
   const engineRoot = join(base, selectedEngine);
   const pointerPath = join(engineRoot, 'current.json');
@@ -22,7 +22,7 @@ test('static dashboard and RKLB detail show their actual data status', () => {
   if (existsSync(join(versionRoot, 'meta.json'))) {
     const selectedMeta = JSON.parse(readFileSync(join(versionRoot, 'meta.json'), 'utf8'));
     const anyAiReport = ['gpt', 'claude'].some(engine => {
-      const base = join(root, 'data/companies/RKLB', engine);
+      const base = process.env.SITE_DATA_DIR ? join(process.env.SITE_DATA_DIR, 'RKLB', engine) : join(root, 'data/companies/RKLB', engine);
       const currentPath = join(base, 'current.json');
       if (!existsSync(currentPath)) return false;
       const selected = JSON.parse(readFileSync(currentPath, 'utf8'));

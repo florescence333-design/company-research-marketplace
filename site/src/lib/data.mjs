@@ -27,7 +27,13 @@ export function loadCompany(ticker = 'RKLB') {
         metrics: existsSync(join(folder, 'metrics.json')) ? readJson(join(folder, 'metrics.json')).metrics : [],
         sources: existsSync(join(folder, 'sources.json')) ? readJson(join(folder, 'sources.json')).sources : [],
         reportItems: existsSync(join(folder, 'report-items.json')) ? readJson(join(folder, 'report-items.json')).sections : [],
-        diagram: existsSync(join(folder, 'diagrams/revenue.mmd')) ? readFileSync(join(folder, 'diagrams/revenue.mmd'), 'utf8') : null,
+        template: existsSync(join(folder, 'template.md')) ? readFileSync(join(folder, 'template.md'), 'utf8') : null,
+        diagrams: existsSync(join(folder, 'diagrams/spec.json')) && existsSync(join(folder, 'diagrams/manifest.json'))
+          ? Object.fromEntries(Object.entries(readJson(join(folder, 'diagrams/spec.json'))).map(([kind, diagram]) => [kind, {
+              ...diagram,
+              mermaid: existsSync(join(folder, `diagrams/${kind === 'flywheel' ? 'flywheel' : 'value-chain'}.mmd`))
+                ? readFileSync(join(folder, `diagrams/${kind === 'flywheel' ? 'flywheel' : 'value-chain'}.mmd`), 'utf8') : null,
+            }])) : {},
         report: existsSync(join(folder, 'report.md')) ? readFileSync(join(folder, 'report.md'), 'utf8') : null,
       };
     }
@@ -36,7 +42,7 @@ export function loadCompany(ticker = 'RKLB') {
     const placeholder = engine => ({
       meta: { ticker, engine, sample: true, analysis_as_of: null },
       decision: { verdict: '판정 보류 (v0.1)', reason: '샘플 화면: 실제 공시 분석 전' },
-      metrics: [], sources: [], reportItems: [], diagram: null, report: null,
+      metrics: [], sources: [], reportItems: [], template: null, diagrams: {}, report: null,
     });
     versions.claude = placeholder('claude');
     versions.gpt = placeholder('gpt');
