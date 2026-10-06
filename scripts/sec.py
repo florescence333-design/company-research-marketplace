@@ -75,6 +75,20 @@ def annual_facts(entries, as_of):
     return [chosen[end] for end in sorted(chosen, reverse=True)]
 
 
+def quarterly_facts(entries, as_of):
+    """Disclosed standalone quarters, excluding year-to-date 10-Q values."""
+    chosen = {}
+    for entry in entries:
+        if not _eligible(entry, as_of) or not 70 <= (_duration(entry) or 0) <= 110:
+            continue
+        if not isinstance(entry.get("val"), (int, float)):
+            continue
+        key = entry["end"]
+        if key not in chosen or (entry["filed"], entry.get("accn", "")) > (chosen[key]["filed"], chosen[key].get("accn", "")):
+            chosen[key] = entry
+    return [chosen[end] for end in sorted(chosen, reverse=True)]
+
+
 def quarterly_eps_ttm(entries, as_of):
     """Sum four contiguous independently disclosed quarterly diluted EPS facts."""
     quarters = _four_quarters(entries, as_of)
@@ -192,6 +206,30 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None):
             append_metric(f"{metric_name}_fy{end[:4]}", "USD", entry, tag)
         if not by_end:
             append_metric(f"{metric_name}_annual", "USD", None)
+
+    quarter_candidates = []
+    for tag in TAG_MAP["revenue"]:
+        quarter_candidates.extend((entry, tag) for entry in quarterly_facts(_tag_entries(data, tag, "USD"), as_of))
+    quarter_by_end = {}
+    for entry, tag in sorted(quarter_candidates, key=lambda item: (item[0]["filed"], item[0].get("accn", "")), reverse=True):
+        quarter_by_end.setdefault(entry["end"], (entry, tag))
+    latest_end = max(quarter_by_end, default=None)
+    latest_entry, latest_tag = quarter_by_end[latest_end] if latest_end else (None, None)
+    prior_end = f"{int(latest_end[:4]) - 1}{latest_end[4:]}" if latest_end else None
+    prior_entry, prior_tag = quarter_by_end.get(prior_end, (None, None))
+    append_metric("revenue_quarter_latest", "USD", latest_entry, latest_tag)
+    append_metric("revenue_quarter_prior_year", "USD", prior_entry, prior_tag)
+    latest_metric, prior_metric = metrics[-2:]
+    if latest_entry and prior_entry and prior_entry["val"] > 0:
+        metrics.append({"metric_id": "revenue_quarter_yoy", "unit": "%", "approximate": False,
+                        "status": "ok", "value": float((Decimal(str(latest_entry["val"])) /
+                                                       Decimal(str(prior_entry["val"])) - 1) * 100),
+                        "period_start": latest_entry["start"], "period_end": latest_entry["end"],
+                        "source_ids": latest_metric["source_ids"] + prior_metric["source_ids"]})
+    else:
+        metrics.append({"metric_id": "revenue_quarter_yoy", "unit": "%", "approximate": False,
+                        "status": "unavailable", "value": None,
+                        "reason": "동일 분기의 전년 매출과 양수 비교 기준 필요"})
 
     for metric_name, tags in POINT_TAGS.items():
         candidates = [(entry, tag) for tag in tags if (entry := _point_fact(_tag_entries(data, tag, "USD"), as_of))]

@@ -6,7 +6,7 @@ from test_contract import ROOT
 import sys
 
 sys.path.insert(0, str(ROOT / "scripts"))
-from sec import annual_facts, build_sec_bundle, quarterly_eps_ttm, sec_user_agent
+from sec import annual_facts, build_sec_bundle, quarterly_eps_ttm, quarterly_facts, sec_user_agent
 
 
 def fact(value, start, end, filed, form="10-K", accession="0001819994-26-000001"):
@@ -25,6 +25,31 @@ class SecSelectionTests(unittest.TestCase):
             fact(80, "2024-01-01", "2024-12-31", "2025-03-01"),
         ]
         self.assertEqual([item["val"] for item in annual_facts(entries, self.as_of)], [100, 80])
+
+    def test_quarter_selection_excludes_ytd_and_future_filing(self):
+        entries = [
+            fact(12, "2026-04-01", "2026-06-30", "2026-08-10", "10-Q"),
+            fact(20, "2026-01-01", "2026-06-30", "2026-08-10", "10-Q"),
+            fact(99, "2026-04-01", "2026-06-30", "2026-11-10", "10-Q"),
+            fact(8, "2025-04-01", "2025-06-30", "2025-08-10", "10-Q"),
+        ]
+        self.assertEqual([item["val"] for item in quarterly_facts(entries, self.as_of)], [12, 8])
+
+    def test_latest_quarter_revenue_uses_same_quarter_prior_year(self):
+        revenue = [
+            fact(150, "2026-04-01", "2026-06-30", "2026-08-10", "10-Q"),
+            fact(100, "2025-04-01", "2025-06-30", "2025-08-10", "10-Q"),
+            fact(270, "2026-01-01", "2026-06-30", "2026-08-10", "10-Q"),
+        ]
+        data = {"cik": 1819994, "entityName": "Rocket Lab USA, Inc.", "facts": {"us-gaap": {
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": revenue}}
+        }}}
+        bundle = build_sec_bundle(data, b"quarter", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        metrics = {item["metric_id"]: item for item in bundle["metrics"]["metrics"]}
+        self.assertEqual(metrics["revenue_quarter_latest"]["value"], 150)
+        self.assertEqual(metrics["revenue_quarter_latest"]["period_start"], "2026-04-01")
+        self.assertEqual(metrics["revenue_quarter_prior_year"]["value"], 100)
+        self.assertEqual(metrics["revenue_quarter_yoy"]["value"], 50.0)
 
     def test_sec_identity_reads_process_without_logging_it(self):
         with patch.dict("os.environ", {"SEC_USER_AGENT": "Research Plugin contact@example.com"}):

@@ -63,7 +63,17 @@ def build_report_items(bundle):
     growth_ids = sorted(key for key in metrics if key.startswith("revenue_growth_fy") and metrics[key]["status"] == "ok")
     growth_history = ", ".join(f"{key[-4:]}년 {percentage(key)}" for key in growth_ids)
     cagr_text = f" 3년 CAGR {percentage('revenue_cagr_3y')}." if metrics.get("revenue_cagr_3y", {}).get("status") == "ok" else ""
-    add(2, f"{year}년 매출 {amount(rev_current)}. 연도별 매출 성장률: {growth_history or '확인 불가'}.{cagr_text} 산업 전체 성장률·TAM과 메가트렌드 적합성은 자료 확인 대기.", [x for x in (rev_current, rev_prior, *growth_ids, "revenue_cagr_3y") if x])
+    quarter = metrics.get("revenue_quarter_latest", {})
+    quarter_ids = []
+    quarter_text = ""
+    if quarter.get("status") == "ok":
+        quarter_ids.append("revenue_quarter_latest")
+        quarter_text = (f" {quarter['period_start']}~{quarter['period_end']} 단독 분기 매출 "
+                        f"{amount('revenue_quarter_latest')}.")
+        if metrics.get("revenue_quarter_yoy", {}).get("status") == "ok":
+            quarter_ids.extend(("revenue_quarter_prior_year", "revenue_quarter_yoy"))
+            quarter_text += f" 전년 같은 분기 대비 {percentage('revenue_quarter_yoy')}."
+    add(2, f"{year}년 매출 {amount(rev_current)}. 연도별 매출 성장률: {growth_history or '확인 불가'}.{cagr_text}{quarter_text} 산업 전체 성장률·TAM과 메가트렌드 적합성은 자료 확인 대기.", [x for x in (rev_current, rev_prior, *growth_ids, "revenue_cagr_3y", *quarter_ids) if x])
     add(3, "규제·경쟁사·Porter 5 Forces를 판단할 검증 자료 확인 대기.")
     segment_facts = [f for f in ("launch_revenue_fy2025", "space_revenue_fy2025") if f in facts]
     segment_body = (f"2025년 Launch Services 매출 {fact_amount('launch_revenue_fy2025', ' USD')}, "
@@ -91,7 +101,7 @@ def build_report_items(bundle):
     employee_body = (f"2025년 말 정규직 직원은 {fact_amount('employees_min_fy2025')}명 초과. "
                      "인재 유지·조직문화 평가는 자료 확인 대기.") if employee_fact else "창업자·인재·조직문화의 검증 자료 확인 대기."
     add(11, employee_body, fact_ids=employee_fact)
-    financial_ids = [key for key in sorted(metrics) if key.startswith(("revenue_fy", "revenue_growth_fy", "operating_income_fy", "operating_margin_fy", "net_income_fy", "operating_cash_flow_fy", "capex_fy", "free_cash_flow_fy"))] + ["revenue_cagr_3y", "cash", "assets", "liabilities", "stockholders_equity", "liabilities_to_equity", "eps_ttm"]
+    financial_ids = [key for key in sorted(metrics) if key.startswith(("revenue_fy", "revenue_growth_fy", "operating_income_fy", "operating_margin_fy", "net_income_fy", "operating_cash_flow_fy", "capex_fy", "free_cash_flow_fy"))] + ["revenue_cagr_3y", *quarter_ids, "cash", "assets", "liabilities", "stockholders_equity", "liabilities_to_equity", "eps_ttm"]
     financial_lines = []
     for metric_id in financial_ids:
         metric = metrics.get(metric_id)

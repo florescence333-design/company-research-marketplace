@@ -74,6 +74,25 @@ class ReportTests(unittest.TestCase):
         self.assertIn("3년 CAGR 20.0%", section["body"])
         self.assertEqual(validate_report_items(report, bundle), [])
 
+    def test_report_labels_latest_standalone_quarter_and_prior_year(self):
+        def fact(value, start, end, filed, form):
+            return {"val": value, "start": start, "end": end, "filed": filed,
+                    "form": form, "accn": "0001819994-26-000001"}
+        data = {"cik": 1819994, "entityName": "Rocket Lab USA, Inc.", "facts": {"us-gaap": {
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [
+                fact(300, "2025-01-01", "2025-12-31", "2026-03-01", "10-K"),
+                fact(150, "2026-04-01", "2026-06-30", "2026-08-10", "10-Q"),
+                fact(100, "2025-04-01", "2025-06-30", "2025-08-10", "10-Q"),
+            ]}}
+        }}}
+        bundle = build_sec_bundle(data, b"report quarter", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        report = build_report_items(bundle)
+        section = report["sections"][1]
+        self.assertIn("2026-04-01~2026-06-30 단독 분기 매출 150 USD", section["body"])
+        self.assertIn("전년 같은 분기 대비 50.0%", section["body"])
+        self.assertEqual(len([x for x in section["metric_ids"] if x.startswith("revenue_quarter")]), 3)
+        self.assertEqual(validate_report_items(report, bundle), [])
+
 
 if __name__ == "__main__":
     unittest.main()
