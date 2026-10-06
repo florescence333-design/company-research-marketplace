@@ -1,0 +1,87 @@
+{
+  "schema_version": "v1-draft",
+  "source_path": "docs/020. 기업분석_Master Template.md",
+  "source_sha256": "a92e1e8aa4cd228dc9da86185080c0e18110b88d059d5d252251feb3a4c77317",
+  "sections": [
+    {
+      "section_id": "S01",
+      "title": "기본 정보",
+      "required": true
+    },
+    {
+      "section_id": "S02",
+      "title": "메가트렌드 흐름 & 산업",
+      "required": true
+    },
+    {
+      "section_id": "S03",
+      "title": "외부 환경 & 산업 경쟁 구조",
+      "required": true
+    },
+    {
+      "section_id": "S04",
+      "title": "사업 구조(What They Do)",
+      "required": true
+    },
+    {
+      "section_id": "S05",
+      "title": "고객 분석 & 고객 지표",
+      "required": true
+    },
+    {
+      "section_id": "S06",
+      "title": "혁신성 & 시장 재편 능력",
+      "required": true
+    },
+    {
+      "section_id": "S07",
+      "title": "뛰어난 기술력과 지속적인 투자",
+      "required": true
+    },
+    {
+      "section_id": "S08",
+      "title": "데이터 우위 & AI 경쟁력",
+      "required": true
+    },
+    {
+      "section_id": "S09",
+      "title": "확장성Scalability",
+      "required": true
+    },
+    {
+      "section_id": "S10",
+      "title": "독점력 & 진입장벽 분석",
+      "required": true
+    },
+    {
+      "section_id": "S11",
+      "title": "창업자&인재 확보 능력&조직문화",
+      "required": true
+    },
+    {
+      "section_id": "S12",
+      "title": "재무/현금흐름",
+      "required": true
+    },
+    {
+      "section_id": "S13",
+      "title": "리스크 요인 정리",
+      "required": true
+    },
+    {
+      "section_id": "S14",
+      "title": "밸류에이션",
+      "required": true
+    },
+    {
+      "section_id": "S15",
+      "title": "시나리오 & 모니터링",
+      "required": true
+    },
+    {
+      "section_id": "S16",
+      "title": "최종 결론 (Summary & Action)",
+      "required": true
+    }
+  ]
+}

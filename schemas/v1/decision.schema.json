@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "v1 초안: 임시 판정 자리",
+  "type": "object",
+  "required": ["schema_version", "decision_policy_version", "verdict", "reason", "business_quality", "price_category"],
+  "properties": {
+    "schema_version": {"const": "v1-draft"},
+    "decision_policy_version": {"const": "v0.1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "data_snapshot_id": {"type": "string", "minLength": 1},
+    "verdict": {"const": "판정 보류 (v0.1)"},
+    "reason": {"type": "string", "minLength": 1},
+    "business_quality": {"type": "null"},
+    "price_category": {"type": "null"},
+    "pending_rules": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

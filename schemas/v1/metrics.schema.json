@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "v1 초안: 최소 재무 지표",
+  "type": "object",
+  "required": ["run_id", "data_snapshot_id", "metrics"],
+  "properties": {
+    "run_id": {"type": "string", "minLength": 1},
+    "data_snapshot_id": {"type": "string", "minLength": 1},
+    "metrics": {"type": "array", "items": {
+      "type": "object",
+      "required": ["metric_id", "value", "status", "unit", "approximate"],
+      "properties": {
+        "metric_id": {"type": "string", "minLength": 1},
+        "value": {"type": ["number", "null"]},
+        "status": {"enum": ["ok", "not_applicable", "unavailable", "collection_failed"]},
+        "unit": {"type": "string", "minLength": 1},
+        "approximate": {"type": "boolean"},
+        "reason": {"type": "string", "minLength": 1},
+        "period_start": {"type": "string", "format": "date"},
+        "period_end": {"type": "string", "format": "date"},
+        "source_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "ok"}}}, "then": {"properties": {"value": {"type": "number"}}}},
+        {"if": {"properties": {"status": {"enum": ["not_applicable", "unavailable", "collection_failed"]}}}, "then": {"required": ["reason"], "properties": {"value": {"type": "null"}, "approximate": {"const": false}}}}
+      ],
+      "additionalProperties": false
+    }}
+  },
+  "additionalProperties": false
+}

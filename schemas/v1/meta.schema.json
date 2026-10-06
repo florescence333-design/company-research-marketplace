@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "v1 초안: 실행 메타데이터",
+  "type": "object",
+  "required": ["schema_version", "run_id", "data_snapshot_id", "analysis_as_of", "generated_at", "ticker", "cik", "engine", "sample", "code_version", "template_version", "technical_defaults_version", "decision_policy_version"],
+  "properties": {
+    "schema_version": {"const": "v1-draft"},
+    "run_id": {"type": "string", "minLength": 1},
+    "data_snapshot_id": {"type": "string", "minLength": 1},
+    "analysis_as_of": {"type": "string", "format": "date-time", "pattern": "(?:Z|[+-][0-9]{2}:[0-9]{2})$"},
+    "generated_at": {"type": "string", "format": "date-time", "pattern": "(?:Z|[+-][0-9]{2}:[0-9]{2})$"},
+    "ticker": {"type": "string", "pattern": "^[A-Z][A-Z0-9.-]*$"},
+    "cik": {"type": "string", "pattern": "^[0-9]{10}$"},
+    "exchange": {"type": ["string", "null"]},
+    "security_type": {"type": ["string", "null"]},
+    "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+    "engine": {"enum": ["claude", "gpt"]},
+    "model": {"type": ["string", "null"]},
+    "sample": {"type": "boolean"},
+    "code_version": {"type": "string", "minLength": 1},
+    "template_version": {"type": "string", "minLength": 1},
+    "technical_defaults_version": {"type": "string", "minLength": 1},
+    "decision_policy_version": {"const": "v0.1"}
+  },
+  "additionalProperties": false
+}

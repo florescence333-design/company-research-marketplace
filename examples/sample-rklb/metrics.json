@@ -1,0 +1,7 @@
+{
+  "run_id": "sample-rklb-001",
+  "data_snapshot_id": "sample-snapshot-001",
+  "metrics": [
+    {"metric_id": "revenue", "value": null, "status": "unavailable", "unit": "USD", "approximate": false, "reason": "합성 샘플: 실제 공시 수집 전"}
+  ]
+}

@@ -1,6 +1,6 @@
 # 1단계 데이터 계약·JSON Schema 작업 계획
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. 사용자 지시에 따라 작업 1~4를 하나씩 구현·테스트·로컬 커밋한 뒤 멈추고 한국어로 결과와 다음 작업을 보고한다. 사용자가 '계속'이라고 하기 전에는 다음 작업으로 넘어가지 않는다.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. 최신 사용자 지시에 따라 구축 순서 1~8의 각 단계마다 실행·로컬 커밋·짧은 보고를 마친 뒤 바로 다음 단계로 진행한다. 사용자 입력이 꼭 필요할 때만 멈춘다.
 
 **Goal:** 샘플 화면과 실제 수집 작업이 공유할 버전 있는 데이터 계약·JSON Schema·검증용 사례를 만든다.
 
@@ -13,18 +13,18 @@
 ## 실행 상태 — 2026-10-06
 
 - 사전 확인: Git 2.55.0.windows.1, uv 0.11.26, Python 3.14.6·3.12.13 설치 확인. Python 3.14.6 실행·pip 26.1.2 확인. 일반 python/py 명령은 현재 에이전트 PATH에서 찾을 수 없어 설치된 절대 경로로 확인했다.
-- 필요한 jsonschema·referencing·날짜 형식 검증 패키지는 확인한 Python 3.14.6 환경에 없다. Windows 설치 명령을 안내하고 프로젝트 .venv 준비 후 작업 1을 진행한다. 사용할 라이브러리 버전은 환경 준비 후 requirements-dev.txt에 고정한다.
+- 이전에는 jsonschema 패키지가 없었다. 사용자가 설치를 완료했으며 2026-10-06에 프로젝트 `.venv`에서 Python 3.14.6·jsonschema 4.26.0·referencing을 실행 확인했다.
 - .gitignore에 비밀 파일·가상환경·실제 분석 산출물을 먼저 제외한 뒤 프로젝트 폴더에서 git init을 완료했다. 원격 저장소는 없다.
-- 작업 1: 환경 준비 중, 스키마·테스트 구현 및 완료 커밋 전. 작업 2~4: 시작 전. 작업 1 완료 후 사용자 '계속'을 기다린다.
+- 최신 요청: 1단계는 3~5단계에 필요한 스키마만 v1 초안으로 먼저 만든다. 판정은 `판정 보류 (v0.1)`이며 판정 엔진은 이번 일정에서 구현하지 않는다. 16단계 템플릿 원본이 제공되었고 ID·제목을 추출한다. 1~8단계는 최소 실행 경로를 먼저 연결한다.
 
 ## Global Constraints
 
 - 스키마는 **v1 초안**이다. 구축 순서 4단계에서 RKLB 실제 공시 데이터가 검증을 통과하기 전까지 수정 가능하며 데이터 사전에도 이 상태를 명시한다. 변경 시 사례·스키마 버전과 변경 근거를 함께 관리한다.
 - 구현 전 Python·Git·필요 패키지를 확인하고 없으면 Windows 설치 명령을 안내한다. 비밀 파일을 .gitignore에 먼저 제외하고 프로젝트 폴더에서 git init을 실행한다. 원격 저장소 연결·푸시는 구축 순서 3단계까지 하지 않는다.
 - 지원 범위: 10-K·10-Q 제출 US-GAAP 비금융 일반 기업. 신규 상장사는 지원 범위 밖으로 안내한다.
-- 판정 기준 버전은 v1, 안내는 '실제 결과 검토 후 조정 예정'. 이미 확정된 판정값을 다시 결정하지 않는다.
+- 판정 기준 v1은 미래 설계로 보존한다. 이번 일정의 실행 결과는 `decision_policy_version=v0.1`, 최종 표시 `판정 보류 (v0.1)`로 고정한다.
 - 개별 평가·위험 신호·역DCF 세부 기준 TODO는 구축 순서 5단계 전 결정이다. 구조 정의를 위해 값을 지어내지 않는다.
-- 16단계 템플릿 최종본·투자 프레임워크 v2는 입력 대기. 실제 섹션 제목·ID 목록 확정은 원본 수령 후 수행한다.
+- 16단계 템플릿 최종본은 `docs/020. 기업분석_Master Template.md`에 입력 완료. 실제 16개 제목·ID는 이 원본에서 추출한다. 투자 프레임워크 v2만 입력 대기다.
 - 데이터 상태는 ok / not_applicable / unavailable / collection_failed, 근사 여부는 별도 필드. 누락은 null과 사유로 표현한다.
 - 가격·평가 등 실제 값과 합성 샘플을 구분한다. sample 여부는 모든 사례의 meta에 명시한다.
 - AI 평가와 코드 산출물의 책임을 명시한다. JSON Schema만으로 작성 주체·근거의 진실성을 보증하지 않는다.

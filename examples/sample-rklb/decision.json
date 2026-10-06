@@ -1,0 +1,11 @@
+{
+  "schema_version": "v1-draft",
+  "decision_policy_version": "v0.1",
+  "run_id": "sample-rklb-001",
+  "data_snapshot_id": "sample-snapshot-001",
+  "verdict": "판정 보류 (v0.1)",
+  "reason": "판정 세부 규칙 미정",
+  "business_quality": null,
+  "price_category": null,
+  "pending_rules": ["item_thresholds", "required_financials", "reverse_dcf_details"]
+}

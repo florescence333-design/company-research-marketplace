@@ -1,0 +1,15 @@
+{
+  "schema_version": "v1-draft",
+  "run_id": "sample-rklb-001",
+  "data_snapshot_id": "sample-snapshot-001",
+  "analysis_as_of": "2026-10-06T12:00:00+09:00",
+  "generated_at": "2026-10-06T12:01:00+09:00",
+  "ticker": "RKLB",
+  "cik": "0001819994",
+  "engine": "gpt",
+  "sample": true,
+  "code_version": "v0.1",
+  "template_version": "master-2026-10-06",
+  "technical_defaults_version": "v1",
+  "decision_policy_version": "v0.1"
+}

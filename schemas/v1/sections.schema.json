@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "v1 초안: Master Template 섹션 목록",
+  "type": "object",
+  "required": ["schema_version", "source_path", "source_sha256", "sections"],
+  "properties": {
+    "schema_version": {"const": "v1-draft"},
+    "source_path": {"const": "docs/020. 기업분석_Master Template.md"},
+    "source_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "sections": {"type": "array", "minItems": 16, "maxItems": 16, "items": {
+      "type": "object", "required": ["section_id", "title", "required"],
+      "properties": {
+        "section_id": {"type": "string", "pattern": "^S(?:0[1-9]|1[0-6])$"},
+        "title": {"type": "string", "minLength": 1},
+        "required": {"const": true}
+      }, "additionalProperties": false
+    }}
+  },
+  "additionalProperties": false
+}

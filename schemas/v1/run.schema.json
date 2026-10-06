@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "v1 초안: 단계 실행 기록",
+  "type": "object",
+  "required": ["run_id", "ticker", "engine", "analysis_as_of", "data_snapshot_id", "steps"],
+  "properties": {
+    "run_id": {"type": "string", "minLength": 1},
+    "ticker": {"type": "string", "pattern": "^[A-Z][A-Z0-9.-]*$"},
+    "engine": {"enum": ["claude", "gpt"]},
+    "analysis_as_of": {"type": "string", "format": "date-time", "pattern": "(?:Z|[+-][0-9]{2}:[0-9]{2})$"},
+    "data_snapshot_id": {"type": "string", "minLength": 1},
+    "steps": {"type": "array", "items": {
+      "type": "object",
+      "required": ["step_id", "state"],
+      "properties": {
+        "step_id": {"type": "string", "pattern": "^S[0-7](?:\\.5)?$"},
+        "state": {"enum": ["pending", "running", "completed", "failed", "blocked"]},
+        "input_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "output_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }}
+  },
+  "additionalProperties": false
+}
