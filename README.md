@@ -7,50 +7,23 @@
 | 프로그램 | 확인한 버전 | 설치·확인 방법 (PowerShell) | 예상 시간 |
 | --- | --- | --- | --- |
 | Git for Windows | 2.55.0 | `winget install --id Git.Git -e`; `git --version` | 약 3~10분 |
-| uv와 Python | uv 관리 Python 3.14.6 | `winget install --id astral-sh.uv -e`; `uv venv --python 3.14 .venv` | 약 2~8분 |
+| uv | 0.11.26 | `winget install --id astral-sh.uv -e`; `uv --version` | 약 2~5분. Python 3.14는 플러그인이 첫 실행 때 준비 |
 | Node.js / npm | 24.19.0 / 11.17.0 | `winget install --id OpenJS.NodeJS.LTS -e`; `node --version`, `npm.cmd --version` | 약 3~10분 |
 | Claude Code | 2.1.199 | `npm.cmd install -g @anthropic-ai/claude-code`; `claude --version`; 첫 사용 시 `claude`에서 로그인 | 약 3~10분 + 로그인 |
 
 설치 뒤 PowerShell을 새로 열어 PATH를 갱신한다. Git Bash가 필요한 Claude Code 환경에서는 Git for Windows가 먼저 설치되어 있어야 한다. 설치 방식은 [uv 공식 문서](https://docs.astral.sh/uv/getting-started/installation/)와 [Claude Code 공식 문서](https://docs.anthropic.com/en/docs/claude-code/getting-started)를 참고한다. 이 저장소에서 테스트한 조합은 위 버전이며, 다른 버전은 아직 검증하지 않았다.
 
-## 의존성 설치와 키 없는 확인 — 약 3~6분
+## 조교 PC의 빈 폴더에서 설치·실행
 
-공개 저장소에서 시작한다. 이미 이 프로젝트 폴더가 있으면 첫 두 명령을 건너뛰고 그 루트로 이동한다.
-
-```powershell
-git clone https://github.com/florescence333-design/company-research-marketplace.git
-cd company-research-marketplace
-uv venv --python 3.14 .venv
-uv pip install --python .venv\Scripts\python.exe -r requirements-dev.txt
-npm.cmd ci --prefix site
-.venv\Scripts\python.exe -m unittest discover -s tests -v
-.venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --sample
-```
-
-마지막 명령은 **합성 샘플**을 `runs/RKLB/gpt/`에 만들고 경로를 출력한다. SEC 자료나 API 키가 필요 없다. `sample=true`이며 실제 투자 분석이 아니다.
-
-## 실제 RKLB 실행과 로컬 화면 — 첫 실행 약 2~5분
-
-SEC는 연락 가능한 이름과 이메일을 넣은 User-Agent를 요구한다. Windows의 사용자 환경변수 `SEC_USER_AGENT`를 시스템 설정에서 미리 등록한다. 값을 채팅·저장소·문서·터미널 출력에 적지 않는다. 아래 명령은 그 값을 현재 프로세스로 읽을 뿐 출력하지 않는다. Twelve Data 키는 이 경로에 필요하지 않다.
+개발 저장소를 복제하거나 `.venv`를 미리 만들 필요가 없다. PowerShell에서 새 빈 폴더를 만들고 그 안에서 Claude Code를 실행한다. 첫 실행의 Python·패키지·사이트 준비에는 약 3~10분, SEC 수집에는 약 2~5분이 걸릴 수 있다. AI 작성 시간은 아직 슬래시 명령 전체로 실측하지 않았다.
 
 ```powershell
-$env:SEC_USER_AGENT = [Environment]::GetEnvironmentVariable('SEC_USER_AGENT', 'User')
-if ([string]::IsNullOrWhiteSpace($env:SEC_USER_AGENT)) { throw 'SEC_USER_AGENT 사용자 환경변수를 먼저 설정하세요.' }
-.venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --new
-npm.cmd run dev --prefix site -- --host 127.0.0.1 --port 4321
-```
-
-명령이 성공하면 `http://127.0.0.1:4321/company/RKLB/`에서 결과를 본다. 보고서 탭은 16개 섹션을 제목·상태·출처별로 표시하고 원문도 접어 볼 수 있다. 마지막 개발 서버 명령은 실행 상태로 남으므로 확인 후 `Ctrl+C`로 종료한다. 실제 실행은 SEC 수집 → 원본 재계산 → 16섹션 부분 보고서 → Mermaid 매출 도식 → 로컬 사이트 빌드·테스트까지 자동으로 연결한다. `--new`를 빼면 24시간 이내 같은 조건의 미완료 실행 1개를 재사용한다. 자세한 검증·재게시 방법은 [배포 안내](docs/DEPLOYMENT.md)에 있다.
-
-## Claude Code 플러그인 설치
-
-프로젝트 루트에서 Claude Code를 실행한다. 로그인되지 않았다면 `/login`을 먼저 완료한다. 공개 저장소의 마켓플레이스 등록·플러그인 설치·활성화와 `claude plugin validate --strict .`는 이 PC에서 확인했다. Claude Code와 Codex의 실제 RKLB 16섹션 AI 작성·검증·로컬 게시도 각각 확인했다. **`/company RKLB` 슬래시 명령의 단일 호출 전체는 아직 확인하지 않았다.**
-
-```powershell
+New-Item -ItemType Directory -Path "$env:USERPROFILE\Documents\CompanyResearchTest"
+Set-Location "$env:USERPROFILE\Documents\CompanyResearchTest"
 claude
 ```
 
-Claude Code 대화 입력창에서 아래 명령을 순서대로 실행한다. 예상 소요 시간은 설치 1~3분, 첫 실제 RKLB 분석은 SEC 수집·AI 작성량에 따라 약 5~20분이며 아직 실측되지 않았다.
+Claude Code 대화 입력창에서 다음을 실행한다. 로그인 요청이 나오면 `/login`을 먼저 완료한다.
 
 ```text
 /plugin marketplace add florescence333-design/company-research-marketplace
@@ -58,7 +31,34 @@ Claude Code 대화 입력창에서 아래 명령을 순서대로 실행한다. �
 /company RKLB
 ```
 
-`/company RKLB`는 공시 수집 후 Claude가 16섹션을 직접 보강하고, 출처·판정 보류·보고서 본문을 검증한 뒤 로컬 화면에 게시하도록 설계했다. 실패 시 결과 경로와 검증 오류를 확인한다. 공통 스크립트는 Codex에서 `--engine gpt`, Claude Code에서 `--engine claude`를 사용한다. 설치와 로그인 뒤에는 `/company-publish RKLB`로 기존 실행의 로컬 재검증·게시도 할 수 있다. 로컬 빌드 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
+플러그인은 설치된 자신의 파일에서 공개 실행 코드만 현재 폴더의 `.company-research/`로 복사한다. `uv`가 Python 3.14와 `jsonschema`가 들어간 가상환경을 만들고 npm이 사이트 패키지를 설치한다. 실제 SEC 수집·실행 결과도 그 폴더에만 저장된다. 개발 폴더의 `.venv`나 `git clone`에 의존하지 않는다. 이미 플러그인을 설치한 PC에서 새 버전을 받으려면 Claude Code에서 `/plugin marketplace update company-research-marketplace` 후 `/plugin update company-analysis@company-research-marketplace`를 사용한다.
+
+SEC는 연락 가능한 이름과 이메일을 넣은 User-Agent를 요구한다. 실제 `/company RKLB` 전 Windows 사용자 환경변수 `SEC_USER_AGENT`를 시스템 설정에서 등록한다. 수집기는 현재 프로세스에서 보이지 않아도 사용자 환경변수에서 직접 읽는다. 값을 채팅·문서·터미널 출력에 적지 않는다. Twelve Data 키는 현재 경로에 필요하지 않다. `--sample`은 합성 샘플만 만들며 실제 투자 분석이 아니다.
+
+완료 후 별도 PowerShell 창에서 같은 빈 폴더로 이동해 화면을 연다. 서버는 `Ctrl+C`로 종료한다.
+
+```powershell
+Set-Location "$env:USERPROFILE\Documents\CompanyResearchTest"
+npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
+```
+
+화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. `/company RKLB`는 SEC 수집 → 코드 초안 → Claude의 16섹션 근거 검토 → 검증 → 로컬 게시를 목표로 한다. 투자는 `판정 보류 (v0.1)`로 표시한다. 공개 마켓플레이스 설치와 두 AI 엔진의 분리 실행·로컬 게시는 확인했지만, **새 폴더에서 `/company RKLB` 한 줄의 Claude AI 단계까지는 사용량 제한으로 아직 검증하지 않았다.** 로컬 게시 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
+
+## Claude Code에서 예상되는 권한 승인
+
+권한 모드·버전에 따라 질문이 묶이거나 생략될 수 있다. 아래는 플러그인이 실제로 시도하도록 작성된 명령과 파일 작업이다. 표시된 경로가 방금 만든 폴더 또는 설치된 `company-analysis` 플러그인을 가리키는지 확인한다. `Bash(python *)` 같은 광범위한 영구 허용은 필요하지 않다.
+
+| 승인 화면에 나올 작업 | 하는 일 |
+| --- | --- |
+| 새 폴더 신뢰 및 설치된 스킬 읽기 | Claude Code가 현재 빈 폴더와 플러그인 지침을 사용한다. |
+| `uv run --no-project --python 3.14 <플러그인>/scripts/bootstrap.py` | 설치된 플러그인의 공개 파일을 `.company-research/`로 복사하고 Python·`jsonschema`·npm 패키지를 준비한다. 첫 실행에는 다운로드가 발생할 수 있다. |
+| `.company-research/.venv/Scripts/python.exe scripts/company.py RKLB --engine claude` | SEC 공시를 읽고 `data/`·`runs/`에 캐시·코드 초안을 만든 뒤 사이트를 로컬 빌드·검사한다. `--new` 등 선택 옵션이 뒤에 붙을 수 있다. |
+| `.company-research/runs/.../report-items.json` 읽기·수정 | Claude가 공시 근거를 바탕으로 16개 섹션의 해석·출처 ID를 작성한다. 재무 원본과 비밀 값은 수정 대상이 아니다. |
+| `scripts/validate_bundle.py`, `scripts/verify_sec_run.py` | JSON 구조, 출처, SEC 원본과 계산값을 다시 검증한다. |
+| `scripts/ai_report.py <실행 폴더> --model claude-code` | AI 작성분의 출처·섹션·고정 판정을 확인하고 보고서와 도식을 확정한다. |
+| `scripts/publish.py RKLB --engine claude --run-id <실행 ID>` | 검증된 결과를 로컬 사이트에 선택하고 빌드·테스트한다. GitHub 푸시나 Cloudflare 배포는 하지 않는다. |
+
+`/company-publish RKLB`는 기존 실행을 다시 검증·로컬 게시하며 `--run-id`를 받을 수 있다. 권한 질문에서 위 범위를 벗어난 경로나 외부 전송 명령이 보이면 승인하지 말고 해당 명령을 확인한다. 자세한 배포 상태는 [배포 안내](docs/DEPLOYMENT.md)에 있다.
 
 ## 현재 범위
 
