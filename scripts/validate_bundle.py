@@ -11,12 +11,13 @@ from jsonschema import Draft202012Validator, FormatChecker
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = ROOT / "schemas" / "v1"
 REQUIRED = ("meta", "metrics", "decision", "sources")
+OPTIONAL = ("extracted-facts",)
 
 
 def validate_bundle(folder: Path) -> list[str]:
     errors = []
     objects = {}
-    for name in REQUIRED:
+    for name in REQUIRED + tuple(name for name in OPTIONAL if (folder / f"{name}.json").exists()):
         path = folder / f"{name}.json"
         try:
             objects[name] = json.loads(path.read_text(encoding="utf-8"))
@@ -30,7 +31,7 @@ def validate_bundle(folder: Path) -> list[str]:
             errors.append(f"{name}.json/{location}: {error.message}")
     if "meta" in objects:
         meta = objects["meta"]
-        for name in ("metrics", "decision"):
+        for name in ("metrics", "decision", "extracted-facts"):
             obj = objects.get(name)
             if not isinstance(obj, dict):
                 continue
@@ -43,6 +44,11 @@ def validate_bundle(folder: Path) -> list[str]:
             for source_id in metric.get("source_ids", []):
                 if source_id not in sources:
                     errors.append(f"metrics.json/metrics/{index}/source_ids: 알 수 없는 {source_id}")
+    if "extracted-facts" in objects and "sources" in objects:
+        sources = {item.get("source_id") for item in objects["sources"].get("sources", [])}
+        for index, fact in enumerate(objects["extracted-facts"].get("facts", [])):
+            if fact.get("source_id") not in sources:
+                errors.append(f"extracted-facts.json/facts/{index}/source_id: 알 수 없는 출처")
     report_path = folder / "report-items.json"
     if report_path.exists() and all(name in objects for name in REQUIRED):
         from report import validate_report_items

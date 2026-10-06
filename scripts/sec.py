@@ -14,6 +14,7 @@ import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
+from business import FILING_ACCESSION, FILING_DATE, FILING_URL, extract_business_facts
 
 ROOT = Path(__file__).resolve().parents[1]
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001819994.json"
@@ -116,15 +117,16 @@ def _point_fact(entries, as_of):
     return max(eligible, key=lambda e: (e["end"], e["filed"], e.get("accn", "")), default=None)
 
 
-def build_sec_bundle(data, raw, engine, now):
+def build_sec_bundle(data, raw, engine, now, business_raw=None):
     """Construct a schema-valid bundle from already downloaded public facts."""
     if data.get("cik") != 1819994 or "Rocket Lab" not in data.get("entityName", ""):
         raise ValueError("SEC response is not RKLB / Rocket Lab")
     if engine not in ("gpt", "claude"):
         raise ValueError("Unknown engine")
     as_of = now.date().isoformat()
-    digest = hashlib.sha256(raw).hexdigest()
-    snapshot_id = f"sec-companyfacts-{digest[:16]}"
+    raw_digest = hashlib.sha256(raw).hexdigest()
+    digest = hashlib.sha256(raw + (business_raw or b"")).hexdigest()
+    snapshot_id = f"sec-snapshot-{digest[:16]}"
     run_id = f"rklb-{engine}-{now:%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
     timestamp = now.isoformat()
     template = json.loads((ROOT / "template" / "sections.json").read_text(encoding="utf-8"))
@@ -136,6 +138,7 @@ def build_sec_bundle(data, raw, engine, now):
         "currency": "USD", "engine": engine, "model": None, "sample": False,
         "code_version": "v0.1", "template_version": template["source_sha256"],
         "technical_defaults_version": "v1", "decision_policy_version": "v0.1",
+        "filing_sha256": hashlib.sha256(business_raw).hexdigest() if business_raw else None,
     }
     metrics, sources = [], []
 
@@ -145,7 +148,7 @@ def build_sec_bundle(data, raw, engine, now):
                         "title": f"SEC Company Facts · {tag}", "accessed_at": timestamp,
                         "accession_number": selected.get("accn"),
                         "location": f"us-gaap/{tag}, {unit}, {selected.get('start', 'instant')}~{selected['end']}, filed {selected['filed']}",
-                        "content_sha256": digest})
+                        "content_sha256": raw_digest})
         return source_id
 
     def append_metric(metric_id, unit, selected, tag=None):
@@ -198,12 +201,36 @@ def build_sec_bundle(data, raw, engine, now):
                            period_start=(date.fromisoformat(current["end"]).replace(year=int(current["end"][:4]) - 1) + timedelta(days=1)).isoformat(),
                            period_end=current["end"])
 
+    extracted = {"schema_version": "v1-draft", "run_id": run_id,
+                 "data_snapshot_id": snapshot_id, "facts": []}
+    annual_revenue = next((m for m in metrics if m["metric_id"] == "revenue_fy2025" and m["status"] == "ok"), None)
+    valid_filing = annual_revenue and any(s["source_id"] in annual_revenue["source_ids"] and s["accession_number"] == FILING_ACCESSION for s in sources)
+    if business_raw and as_of >= FILING_DATE and valid_filing:
+        business_digest = hashlib.sha256(business_raw).hexdigest()
+        business = extract_business_facts(business_raw)
+        launch = business.get("launch_revenue_fy2025")
+        space = business.get("space_revenue_fy2025")
+        if launch and space and launch["value"] + space["value"] != annual_revenue["value"]:
+            business.pop("launch_revenue_fy2025")
+            business.pop("space_revenue_fy2025")
+        for fact_id, item in business.items():
+            source_id = f"sec-{len(sources) + 1:03d}"
+            sources.append({"source_id": source_id, "url": FILING_URL,
+                            "title": "RKLB 2025 Form 10-K", "accessed_at": timestamp,
+                            "accession_number": FILING_ACCESSION, "location": item["location"],
+                            "content_sha256": business_digest})
+            extracted["facts"].append({"fact_id": fact_id, "value": item["value"],
+                                        "unit": item["unit"], "source_id": source_id,
+                                        "location": item["location"],
+                                        "verification": "matched_official_filing_text"})
+
     decision = {"schema_version": "v1-draft", "decision_policy_version": "v0.1",
                 "run_id": run_id, "data_snapshot_id": snapshot_id, "verdict": "판정 보류 (v0.1)",
                 "reason": "판정 세부 규칙 미정", "business_quality": None, "price_category": None,
                 "pending_rules": ["item_thresholds", "required_financials", "reverse_dcf_details"]}
     return {"meta": meta, "metrics": {"run_id": run_id, "data_snapshot_id": snapshot_id, "metrics": metrics},
-            "sources": {"sources": sources}, "decision": decision}
+            "sources": {"sources": sources}, "decision": decision,
+            "extracted-facts": extracted}
 
 
 def fetch_companyfacts(cache_path):
@@ -231,3 +258,21 @@ def fetch_companyfacts(cache_path):
                 raise
             time.sleep(2 ** attempt)
     raise RuntimeError("SEC collection failed")
+
+
+def fetch_10k(cache_path):
+    """Fetch the 2025 filing once with the same locally provided SEC identity."""
+    if cache_path.exists():
+        return cache_path.read_bytes()
+    user_agent = os.environ.get("SEC_USER_AGENT", "").strip()
+    if "@" not in user_agent or len(user_agent) < 12:
+        raise RuntimeError("Set SEC_USER_AGENT locally to an identifying name and contact email")
+    request = urllib.request.Request(FILING_URL, headers={"User-Agent": user_agent, "Accept-Encoding": "identity"})
+    time.sleep(1)
+    with urllib.request.urlopen(request, timeout=30) as response:
+        raw = response.read()
+    if b"rocket lab" not in raw.lower() or b"2025" not in raw:
+        raise ValueError("Unexpected SEC 10-K response")
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_bytes(raw)
+    return raw

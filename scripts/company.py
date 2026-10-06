@@ -7,12 +7,13 @@ import re
 import shutil
 import subprocess
 import sys
+import urllib.error
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from report import write_report
-from sec import build_sec_bundle, fetch_companyfacts
+from sec import build_sec_bundle, fetch_10k, fetch_companyfacts
 from validate_bundle import validate_bundle
 from visualize_run import build_visualization, verify_visualization
 
@@ -31,7 +32,9 @@ def write_run_state(output: Path, no_viz: bool, original: bool) -> None:
         {"step_id": "S0.5", "state": "completed"},
         {"step_id": "S1", "state": "completed", "output_sha256": file_hash(output / "sources.json")},
         {"step_id": "S2", "state": "completed", "output_sha256": file_hash(output / "metrics.json")},
-        {"step_id": "S3", "state": "pending", "reason": "공시 본문·주석 추출 미구현"},
+        {"step_id": "S3", "state": "completed" if (output / "extracted-facts.json").exists() and
+         json.loads((output / "extracted-facts.json").read_text(encoding="utf-8"))["facts"] else "pending",
+         "reason": "2025 10-K 일부 사업 사실만 추출; 나머지는 자료 확인 대기"},
         {"step_id": "S4", "state": "completed", "input_sha256": file_hash(output / "metrics.json"),
          "output_sha256": file_hash(output / "report.md"), "reason": "부분 보고서; 판정 보류 (v0.1)"},
         {"step_id": "S5", "state": "pending" if no_viz else "completed",
@@ -83,7 +86,12 @@ def write_real_run(output: Path, engine: str) -> None:
     now = datetime.now(timezone.utc)
     cache = ROOT / "data" / "sec" / "rklb-companyfacts.json"
     data, raw = fetch_companyfacts(cache)
-    bundle = build_sec_bundle(data, raw, engine, now)
+    try:
+        business_raw = fetch_10k(ROOT / "data" / "sec" / "rklb-2025-10k.htm")
+    except (OSError, urllib.error.URLError, TimeoutError, ValueError) as exc:
+        business_raw = None
+        print(f"SEC 10-K 본문 수집 실패: {type(exc).__name__}; 관련 섹션 자료 확인 대기", file=sys.stderr)
+    bundle = build_sec_bundle(data, raw, engine, now, business_raw)
     output.mkdir(parents=True, exist_ok=True)
     if any(output.iterdir()):
         raise ValueError(f"Output directory is not empty: {output}")

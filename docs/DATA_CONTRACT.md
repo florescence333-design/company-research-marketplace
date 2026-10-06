@@ -16,6 +16,7 @@
 | `sources.json` | 수집 스크립트 | `sources[]`의 `source_id/url/title/accessed_at/location`, 선택적으로 공시 번호·해시·인용문 | URL 확인만으로 내용 진실성을 보증하지 않음 |
 | `decision.json` | 임시 판정 스크립트 | `schema_version=v1-draft`, `decision_policy_version=v0.1`, `verdict=판정 보류 (v0.1)`, `reason`, null 축, `pending_rules` | 실제 판정 불가. 같은 실행·스냅샷을 참조 |
 | `run.json` | 실행 스크립트 | 실행 ID·티커·엔진·기준시점·스냅샷·옵션·단계별 `step_id/state`와 선택적 입출력 SHA-256 | 단계 상태는 `pending/running/completed/failed/blocked` |
+| `extracted-facts.json` | 10-K 본문 추출 | `fact_id/value/unit/source_id/location/verification`, 실행·스냅샷 ID | 공식 10-K 원본 해시와 문구 재추출, 출처 ID 참조를 확인. 현재 RKLB 일부 사업 사실에 한정 |
 
 공통 상태는 `ok`, `not_applicable`, `unavailable`, `collection_failed`다. `ok` 수치는 number이고, 나머지 상태는 `value=null`과 비어 있지 않은 `reason`을 요구한다. `approximate`는 항상 별도 boolean이다. 0은 실제 측정값일 수 있으므로 누락값의 대용으로 쓰지 않는다. 계산 중에는 Python `Decimal`을 사용하고 JSON의 수치 직렬화·표시 반올림은 계산과 구분한다. 모든 시각은 시간대 정보를 포함하며 재무 기간은 별도 날짜 필드로 둔다.
 
@@ -23,7 +24,6 @@
 
 | 파일 | 작성 주체 | 예정 필드·참조 | 상태 |
 | --- | --- | --- | --- |
-| `extracted-facts.json` | 공시 본문 추출·검증 | 원문 위치, 단위, 기간, 출처 ID, 검증 상태 | 4단계 |
 | `valuation.json` | 계산 코드 | 역DCF 입력·가정·9/10/11% 민감도·계산 가능 여부 | 판정 세부 규칙 결정 뒤 |
 | `assessments.json` | AI | 기업 유형, 다섯 항목 평가, 근거·반증 조건·성장률 범위 | 판정 세부 규칙 결정 뒤 |
 | `dashboard.json` | 조립 코드 | meta·metrics·decision 참조와 표시 상태 | 3단계 |
@@ -37,6 +37,8 @@
 
 5단계에서는 `meta.company_name`을 선택 필드로 추가하고 `report-items.schema.json`을 만들었다. `report-items.json`은 모든 섹션을 Master Template 순서대로 담고, 작성 상태와 사용한 지표·출처 ID를 적는다. 현재 내용은 SEC 숫자만으로 만들 수 있는 부분 보고서이며, 자료가 없는 섹션은 **자료 확인 대기**라고 명시한다. 수치 성장률은 코드에서 계산한다. 사업 경쟁력·밸류에이션·최종 매수/회피 판정은 작성하지 않는다.
 
+후속 보강으로 RKLB 2025년 10-K 본문에서 직접 일치한 사업 사실을 `extracted-facts.json`에 담고, `report-items.json`의 선택적 `fact_ids`로 사용 섹션에 연결했다. 본문이 없거나 문구가 맞지 않으면 추정해서 채우지 않는다. 사업부 매출 합계는 Company Facts 총매출과 대조하고, 10-K 원본 SHA-256·accession·문서 내 위치를 출처에 남긴다. 10-K 파일 해시는 `meta.filing_sha256`에 기록한다. 이 역시 **v1 초안**이며 다른 기업과 다른 공시 형식에 일반화되었다는 뜻은 아니다.
+
 ## 로컬 실행
 
 ```powershell
@@ -49,7 +51,7 @@
 
 ## 4단계 실제 RKLB 검증
 
-`scripts/sec.py`는 SEC Company Facts에서 공시일이 분석 기준일을 넘지 않는 10-K·10-Q만 선택한다. 연간 흐름 값은 330~380일 기간을 요구하고 공시별 출처 ID·태그·기간·원본 SHA-256을 기록한다. 2023~2025년 매출·영업손익·순손익·영업현금흐름, 최신 현금·자산·부채·자본을 수집했다. EPS(TTM)는 최근 연속 4개 독립 분기 희석 EPS가 있으면 합산하고, 없으면 연간 순이익 + 최신 누적 순이익 − 전년 동기 누적 순이익을 최신 분기 희석 가중평균 주식 수로 나누어 **근사**로 표시한다. 135일이 넘은 주식 수나 누락 분모는 사용하지 않는다.
+`scripts/sec.py`는 SEC Company Facts에서 공시일이 분석 기준일을 넘지 않는 10-K·10-Q만 선택한다. 연간 흐름 값은 330~380일 기간을 요구하고 공시별 출처 ID·태그·기간·원본 SHA-256을 기록한다. 2023~2025년 매출·영업손익·순손익·영업현금흐름, 최신 현금·자산·부채·자본을 수집했다. EPS(TTM)는 최근 연속 4개 독립 분기 희석 EPS가 있으면 합산하고, 없으면 연간 순이익 + 최신 누적 순이익 − 전년 동기 누적 순이익을 최신 분기 희석 가중평균 주식 수로 나누어 **근사**로 표시한다. 135일이 넘은 주식 수나 누락 분모는 사용하지 않는다. 공식 [2025년 10-K](https://www.sec.gov/Archives/edgar/data/1819994/000181999426000013/rklb-20251231.htm)의 정해진 문구에서 사업부 매출·수주잔고·누적 발사/배치·직원·Neutron 계획 탑재량을 부분 추출한다.
 
 ```powershell
 $env:SEC_USER_AGENT=[Environment]::GetEnvironmentVariable('SEC_USER_AGENT','User')
@@ -59,11 +61,11 @@ $run=Get-ChildItem runs\RKLB\gpt | Sort-Object LastWriteTime -Descending | Selec
 npm.cmd run build --prefix site
 ```
 
-`data/`, `runs/`, `site/data/`는 Git에서 제외한다. SEC_USER_AGENT 값은 코드·출력·문서에 쓰지 않는다. `verify_sec_run.py`는 보관한 SEC 원본 해시와 선정 지표·출처를 다시 계산해 대조한다. 공시 본문 확인, 다른 결산월 기업 검증, AI의 재무 해석은 다음 작업이다.
+`data/`, `runs/`, `site/data/`는 Git에서 제외한다. SEC_USER_AGENT 값은 코드·출력·문서에 쓰지 않는다. `verify_sec_run.py`는 보관한 Company Facts와 10-K 원본 해시에서 재무 지표·사업 사실·출처를 다시 계산해 대조한다. 전체 10-K/10-Q 감사 의견과 주석 검토, 다른 결산월 기업 검증, AI의 재무 해석은 다음 작업이다.
 
 ## 6단계 실행 상태와 도식
 
-실제 실행은 `run.json`에 S0~S7의 상태와 검증 가능한 산출물 해시를 기록한다. `--new`는 새 실행, `--run-id`는 같은 티커·엔진 실행의 해시 확인 후 재사용이다. 기본 실행은 같은 옵션의 24시간 이내 미완료 실행이 하나일 때 그 실행을 재사용하고, 여러 개면 명시 ID를 요구한다. 현재 단순 파이프라인은 중간 단계 부분 재실행 대신 변조를 감지해 새 실행을 요구한다. S3 공시 주석·본문 추출과 S6/S7 원격 게시 검증은 아직 pending으로 남는다.
+실제 실행은 `run.json`에 S0~S7의 상태와 검증 가능한 산출물 해시를 기록한다. `--new`는 새 실행, `--run-id`는 같은 티커·엔진 실행의 해시 확인 후 재사용이다. 기본 실행은 같은 옵션의 24시간 이내 미완료 실행이 하나일 때 그 실행을 재사용하고, 여러 개면 명시 ID를 요구한다. 현재 단순 파이프라인은 중간 단계 부분 재실행 대신 변조를 감지해 새 실행을 요구한다. S3는 RKLB 2025 10-K의 일부 사실이 검증되면 완료로 표시하고 범위를 사유에 기록한다. 공시 전체 추출 및 S7 원격 게시 검증은 미완료다.
 
 `scripts/visualize_run.py`는 검증된 연간 매출 2개 이상에서 Mermaid 매출 연혁 도식을 만든다. `diagrams/manifest.json`은 기준 보고서 run_id·스냅샷·보고서 해시·도식 해시를 기록한다. `--no-viz`는 도식 없이 결과를 만들고, `--viz-only --run-id <id>`는 기존 보고서 해시가 바뀌지 않았을 때 도식만 다시 만든다. 브라우저는 Mermaid를 렌더링한다. 사업 플라이휠·밸류체인 도식은 아직 자료 확인 대기다. `--original`은 원본 템플릿 사용을 실행 옵션에 기록하며 현재 커스텀 템플릿 생성 전이라 기본 실행과 동일한 16개 원본 섹션을 사용한다.
 

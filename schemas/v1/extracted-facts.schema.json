@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "v1 초안: SEC 공시 본문에서 확인한 사실",
+  "type": "object",
+  "required": ["schema_version", "run_id", "data_snapshot_id", "facts"],
+  "properties": {
+    "schema_version": {"const": "v1-draft"},
+    "run_id": {"type": "string", "minLength": 1},
+    "data_snapshot_id": {"type": "string", "minLength": 1},
+    "facts": {"type": "array", "items": {"type": "object",
+      "required": ["fact_id", "value", "unit", "source_id", "location", "verification"],
+      "properties": {
+        "fact_id": {"type": "string", "minLength": 1},
+        "value": {"type": "number"},
+        "unit": {"type": "string", "minLength": 1},
+        "source_id": {"type": "string", "minLength": 1},
+        "location": {"type": "string", "minLength": 1},
+        "verification": {"const": "matched_official_filing_text"}
+      }, "additionalProperties": false
+    }}
+  },
+  "additionalProperties": false
+}

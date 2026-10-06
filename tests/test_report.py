@@ -41,6 +41,23 @@ class ReportTests(unittest.TestCase):
         report["sections"][0]["source_ids"] = ["made-up"]
         self.assertTrue(validate_report_items(report, self.bundle))
 
+    def test_10k_facts_remain_traceable_in_relevant_sections(self):
+        self.bundle["extracted-facts"] = {"facts": [
+            {"fact_id": "backlog_fy2024", "value": 1_067_000_000, "unit": "USD", "source_id": "filing-a"},
+            {"fact_id": "backlog_fy2025", "value": 1_847_300_000, "unit": "USD", "source_id": "filing-b"},
+        ]}
+        self.bundle["sources"]["sources"].extend([
+            {"source_id": "filing-a"}, {"source_id": "filing-b"},
+        ])
+        report = build_report_items(self.bundle)
+        section = report["sections"][8]
+        self.assertEqual(section["section_id"], "S09")
+        self.assertIn("1,847,300,000 USD", section["body"])
+        self.assertEqual(section["fact_ids"], ["backlog_fy2024", "backlog_fy2025"])
+        self.assertEqual(validate_report_items(report, self.bundle), [])
+        report["sections"][8]["fact_ids"] = ["unverified-fact"]
+        self.assertTrue(validate_report_items(report, self.bundle))
+
 
 if __name__ == "__main__":
     unittest.main()

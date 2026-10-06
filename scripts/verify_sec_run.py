@@ -22,18 +22,26 @@ def verify_run(folder: Path, raw_path: Path) -> list[str]:
     if meta.get("sample"):
         return ["합성 샘플은 SEC 원본 대조 대상이 아님"]
     raw = raw_path.read_bytes()
-    digest = hashlib.sha256(raw).hexdigest()
-    if meta["data_snapshot_id"] != f"sec-companyfacts-{digest[:16]}":
+    business_raw = None
+    if meta.get("filing_sha256"):
+        business_raw = (ROOT / "data" / "sec" / "rklb-2025-10k.htm").read_bytes()
+        if hashlib.sha256(business_raw).hexdigest() != meta["filing_sha256"]:
+            return ["10-K 원본 해시 불일치"]
+    digest = hashlib.sha256(raw + (business_raw or b"")).hexdigest()
+    if meta["data_snapshot_id"] != f"sec-snapshot-{digest[:16]}":
         return ["원본 SEC 스냅샷 해시 불일치"]
-    expected = build_sec_bundle(json.loads(raw), raw, meta["engine"], datetime.fromisoformat(meta["analysis_as_of"]))
-    for name in ("metrics", "sources"):
+    expected = build_sec_bundle(json.loads(raw), raw, meta["engine"], datetime.fromisoformat(meta["analysis_as_of"]), business_raw)
+    for name in ("metrics", "sources", "extracted-facts"):
         actual = json.loads((folder / f"{name}.json").read_text(encoding="utf-8"))
         if name == "metrics":
             actual = actual["metrics"]
             expected_value = expected[name]["metrics"]
-        else:
+        elif name == "sources":
             actual = actual["sources"]
             expected_value = expected[name]["sources"]
+        else:
+            actual = actual["facts"]
+            expected_value = expected[name]["facts"]
         if actual != expected_value:
             errors.append(f"{name}.json: SEC 원본으로 재계산한 값과 불일치")
     return errors
