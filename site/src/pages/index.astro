@@ -1,0 +1,56 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+<Layout title="Company Research · 기업 목록">
+  <div class="shell">
+    <aside>
+      <a class="brand" href="/"><span class="brand-mark">R</span><span>RESEARCH / LAB</span></a>
+      <div class="aside-label">Workspace</div>
+      <a class="nav-link active" href="/">▦ &nbsp; 기업 목록</a>
+      <a class="nav-link" href="/company/RKLB/">⌁ &nbsp; RKLB 분석</a>
+      <div class="sidebar-note">US-GAAP 일반 기업 분석<br/>Decision policy v0.1</div>
+    </aside>
+    <main>
+      <div class="topbar"><span>WORKSPACE <span class="muted">/ COMPANIES</span></span><span class="avatar">R</span></div>
+      <div class="content">
+        <div class="eyebrow">Company intelligence / 001</div>
+        <h1>기업 분석</h1>
+        <p class="muted intro">재무 공시와 근거를 한곳에서 확인합니다. 현재 판정은 세부 기준 확정 전까지 보류합니다.</p>
+        <div class="stats">
+          <div class="panel stat"><span>분석 대상</span><strong>01</strong><small>US-GAAP 일반 기업</small></div>
+          <div class="panel stat"><span>판정 기준</span><strong>v0.1</strong><small>최종 판정 보류</small></div>
+          <div class="panel stat"><span>입력 상태</span><strong>16</strong><small>Master Template 섹션</small></div>
+        </div>
+        <div class="list-header"><h2>기업 목록</h2><span class="muted mono">01 COMPANY</span></div>
+        <a class="company panel" href="/company/RKLB/">
+          <span class="symbol">R</span>
+          <span class="company-name"><strong>Rocket Lab</strong><small>RKLB · 우주·발사 서비스</small></span>
+          <span class="badge sample">샘플 데이터</span>
+          <span class="decision">판정 보류 (v0.1)</span>
+          <span class="arrow">↗</span>
+        </a>
+        <p class="footnote">샘플 화면에는 실제 재무 수치나 투자 결론이 포함되지 않습니다.</p>
+      </div>
+    </main>
+  </div>
+</Layout>
+<style>
+  .intro { max-width:650px; margin:0 0 36px; font-size:13px; }
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .stat { padding:20px 22px; display:flex; flex-direction:column; min-height:124px; }
+  .stat span { color:#8ca49b; font-size:11px; }
+  .stat strong { font:500 28px 'IBM Plex Mono'; margin-top:12px; }
+  .stat small { color:#728c82; font-size:11px; }
+  .list-header { display:flex; justify-content:space-between; align-items:center; margin:52px 0 16px; }
+  .list-header span { font-size:10px; }
+  .company { display:flex; align-items:center; gap:18px; padding:21px; transition:background .2s; }
+  .company:hover { background:#20302a; }
+  .symbol { width:46px; height:46px; border-radius:10px; display:grid; place-items:center; background:#2a4339; color:#b7e4cd; font:600 24px 'IBM Plex Mono'; }
+  .company-name { display:flex; flex-direction:column; gap:4px; flex:1; }
+  .company-name strong { font-size:14px; }
+  .company-name small { font-size:11px; color:#81998f; }
+  .decision { font-size:12px; color:#b3c8bb; margin-left:18px; }
+  .arrow { color:#8eb59f; font-size:19px; margin-left:16px; }
+  .footnote { color:#698176; font-size:11px; margin-top:20px; }
+  @media(max-width:720px) { .stats { grid-template-columns:1fr; } .company { flex-wrap:wrap; } .decision { margin:0; } }
+</style>

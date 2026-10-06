@@ -27,3 +27,4 @@ node_modules/
 dist/
 .astro/
 .wrangler/
+site/public/build-info.json

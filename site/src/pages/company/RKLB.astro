@@ -1,0 +1,150 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { loadCompany } from '../../lib/data.mjs';
+
+const versions = loadCompany('RKLB');
+const initialEngine = versions.gpt ? 'gpt' : 'claude';
+const current = versions[initialEngine];
+const isSample = Object.values(versions).every(v => v.meta.sample);
+const cards = [
+  ['주가', 'price', 'USD'],
+  ['시가총액', 'market_cap', 'USD'],
+  ['PER (TTM)', 'pe_ttm', '배'],
+  ['EPS (TTM)', 'eps_ttm', 'USD'],
+  ['52주 범위', 'range_52w', 'USD'],
+  ['배당수익률', 'dividend_yield', '%'],
+];
+const metricDisplay = (version, id) => {
+  const fact = version.metrics.find(item => item.metric_id === id);
+  if (!fact || fact.status !== 'ok' || typeof fact.value !== 'number') return '확인 불가';
+  return `${fact.value.toLocaleString('ko-KR')}${fact.unit === '%' ? '%' : ''}`;
+};
+---
+<Layout title="RKLB 분석 · Company Research">
+  <div class="shell">
+    <aside>
+      <a class="brand" href="/"><span class="brand-mark">R</span><span>RESEARCH / LAB</span></a>
+      <div class="aside-label">Workspace</div>
+      <a class="nav-link" href="/">▦ &nbsp; 기업 목록</a>
+      <a class="nav-link active" href="/company/RKLB/">⌁ &nbsp; RKLB 분석</a>
+      <div class="sidebar-note">투자 결론은 판정 세부 기준 확정 후 제공합니다.<br/>Decision policy v0.1</div>
+    </aside>
+    <main data-versions={JSON.stringify(versions)}>
+      <div class="topbar"><span><a href="/">COMPANIES</a> <span class="muted">/ RKLB</span></span><span class="avatar">R</span></div>
+      <div class="content">
+        <div class="intro-row">
+          <div>
+            <div class="eyebrow">Company profile / NASDAQ</div>
+            <h1>Rocket Lab <span class="ticker">RKLB</span></h1>
+            <p class="muted subtitle">기업 공시·재무 상태·분석 근거를 한 화면에서 확인합니다.</p>
+          </div>
+          <div class="engine-switch" role="group" aria-label="분석 엔진">
+            {Object.keys(versions).map(engine => <button type="button" class={engine === initialEngine ? 'active' : ''} data-engine={engine}>{engine === 'gpt' ? 'GPT판' : 'Claude판'}</button>)}
+          </div>
+        </div>
+
+        <div class="status-line">
+          {isSample && <span class="badge sample">샘플 데이터</span>}
+          <span class="badge">US-GAAP 범위</span>
+          <span class="muted">분석 기준: <span id="as-of">{current.meta.analysis_as_of || '실제 데이터 수집 전'}</span></span>
+        </div>
+
+        <section class="decision-panel panel" aria-labelledby="verdict-title">
+          <div>
+            <div class="eyebrow">Investment decision / v0.1</div>
+            <h2 id="verdict-title">판정 보류 (v0.1)</h2>
+            <p id="verdict-reason">{current.decision.reason}</p>
+          </div>
+          <div class="decision-side">
+            <span>사업 품질</span><strong>평가 대기</strong>
+            <span>가격 적정성</span><strong>계산 대기</strong>
+          </div>
+        </section>
+
+        <div class="section-heading"><h2>시장·재무 스냅샷</h2><span class="muted">기준시점 값만 표시</span></div>
+        <div class="metric-grid">
+          {cards.map(([label,id,unit]) => <div class="panel metric"><span>{label}</span><strong data-metric={id}>{metricDisplay(current,id)}</strong><small>{unit}</small></div>)}
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="기업 분석 내용">
+          {['보고서','재무','시각화','템플릿','출처·데이터','비교'].map((name, i) => <button type="button" role="tab" aria-selected={i === 0 ? 'true' : 'false'} data-tab={i} class={i === 0 ? 'active' : ''}>{name}</button>)}
+        </div>
+        <div class="panel tab-panel" data-panel="0">
+          <h2>기업 분석 보고서</h2>
+          <p class="muted">확인 가능한 자료와 근거를 기준으로 표시합니다.</p>
+          <pre id="report-text">{current.report || '16단계 Master Template 준비 완료 · 이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.'}</pre>
+        </div>
+        <div class="panel tab-panel" data-panel="1" hidden>
+          <h2>재무 데이터</h2><p class="muted">출처가 확인된 지표만 표시합니다. 없는 값은 0으로 채우지 않습니다.</p>
+          <div id="financial-rows" class="data-rows">{current.metrics.length ? current.metrics.map(m => <div><span>{m.metric_id}</span><strong>{m.status === 'ok' ? m.value : '확인 불가'}</strong></div>) : <span>아직 검증된 재무 수치가 없습니다.</span>}</div>
+        </div>
+        <div class="panel tab-panel" data-panel="2" hidden><h2>시각화</h2><p class="muted">플라이휠과 밸류체인 도식은 보고서 검증 후 생성됩니다.</p></div>
+        <div class="panel tab-panel" data-panel="3" hidden><h2>Master Template</h2><p class="muted">확정본 16개 섹션의 원본은 플러그인에 포함되어 있습니다. 기업별 세부 템플릿은 분석 단계에서 생성됩니다.</p></div>
+        <div class="panel tab-panel" data-panel="4" hidden><h2>출처·데이터</h2><p class="muted">기준시점·수집 상태·출처를 함께 확인합니다.</p><div id="source-rows" class="data-rows">{current.sources.length ? current.sources.map(s => <div><span>{s.title}</span><a href={s.url} target="_blank" rel="noopener noreferrer">원문 ↗</a></div>) : <span>표시할 검증 출처가 없습니다.</span>}</div></div>
+        <div class="panel tab-panel" data-panel="5" hidden><h2>두 엔진 비교</h2><p class="muted">같은 항목의 차이와 데이터 기준시점 차이를 보여줍니다.</p><div class="compare"><div><span>CLAUDE판</span><strong>{versions.claude ? versions.claude.decision.verdict : '미생성'}</strong></div><div><span>GPT판</span><strong>{versions.gpt ? versions.gpt.decision.verdict : '미생성'}</strong></div></div></div>
+        <p class="page-footnote">판정 기준 v1의 세부 규칙이 미정입니다. 이 화면의 v0.1 보류 표시는 투자 권고가 아닙니다.</p>
+      </div>
+    </main>
+  </div>
+  <script>
+    const main = document.querySelector('main[data-versions]');
+    const versions = JSON.parse(main.dataset.versions);
+    document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
+      const target = button.dataset.tab;
+      document.querySelectorAll('[data-tab]').forEach(tab => { tab.classList.toggle('active', tab === button); tab.setAttribute('aria-selected', String(tab === button)); });
+      document.querySelectorAll('[data-panel]').forEach(panel => { panel.hidden = panel.dataset.panel !== target; });
+    }));
+    document.querySelectorAll('[data-engine]').forEach(button => button.addEventListener('click', () => {
+      const version = versions[button.dataset.engine];
+      document.querySelectorAll('[data-engine]').forEach(item => item.classList.toggle('active', item === button));
+      document.querySelector('#as-of').textContent = version.meta.analysis_as_of || '실제 데이터 수집 전';
+      document.querySelector('#verdict-reason').textContent = version.decision.reason;
+      document.querySelector('#report-text').textContent = version.report || '이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.';
+      document.querySelectorAll('[data-metric]').forEach(item => {
+        const fact = version.metrics.find(metric => metric.metric_id === item.dataset.metric);
+        item.textContent = fact?.status === 'ok' && typeof fact.value === 'number' ? fact.value.toLocaleString('ko-KR') + (fact.unit === '%' ? '%' : '') : '확인 불가';
+      });
+      document.querySelector('#financial-rows').textContent = version.metrics.length ? version.metrics.map(m => `${m.metric_id}: ${m.status === 'ok' ? m.value : '확인 불가'}`).join(' / ') : '아직 검증된 재무 수치가 없습니다.';
+      document.querySelector('#source-rows').textContent = version.sources.length ? version.sources.map(s => s.title).join(' / ') : '표시할 검증 출처가 없습니다.';
+    }));
+  </script>
+</Layout>
+<style>
+  .intro-row { display:flex; justify-content:space-between; align-items:end; gap:24px; }
+  .ticker { color:#8aada0; font:400 15px 'IBM Plex Mono'; vertical-align:middle; margin-left:10px; letter-spacing:0; }
+  .subtitle { font-size:13px; margin:0; }
+  .engine-switch { display:flex; padding:4px; border:1px solid #314a42; border-radius:9px; background:#14211d; white-space:nowrap; }
+  .engine-switch button { background:transparent; border:0; color:#819b90; padding:9px 13px; border-radius:6px; font-size:11px; }
+  .engine-switch button.active { background:#2c4b3e; color:#d8f1e3; }
+  .status-line { display:flex; align-items:center; gap:8px; margin:30px 0 22px; flex-wrap:wrap; font-size:11px; }
+  .status-line .muted { margin-left:auto; }
+  .decision-panel { display:flex; justify-content:space-between; gap:25px; padding:30px; border-color:#45644f; background:radial-gradient(circle at 20% 10%, #254236, #182a24 62%); }
+  .decision-panel h2 { font-size:28px; margin:13px 0 5px; }
+  .decision-panel p { color:#9fb7a8; font-size:12px; margin:0; }
+  .decision-side { border-left:1px solid #496356; padding-left:30px; min-width:170px; display:grid; grid-template-columns:1fr auto; gap:12px 10px; align-content:center; font-size:11px; }
+  .decision-side span { color:#8da89a; }
+  .decision-side strong { font-weight:500; color:#e0eee2; }
+  .section-heading { display:flex; align-items:center; justify-content:space-between; margin:40px 0 15px; }
+  .section-heading span { font-size:11px; }
+  .metric-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+  .metric { min-height:103px; padding:18px; display:flex; flex-direction:column; }
+  .metric span { color:#85a094; font-size:11px; }
+  .metric strong { font:500 18px 'IBM Plex Mono','Noto Sans KR'; margin-top:13px; }
+  .metric small { color:#6d867b; font-size:10px; margin-top:2px; }
+  .tabs { display:flex; gap:25px; border-bottom:1px solid #354b41; overflow:auto; margin-top:47px; }
+  .tabs button { border:0; border-bottom:2px solid transparent; background:transparent; color:#7d968a; white-space:nowrap; padding:0 1px 14px; font-size:12px; }
+  .tabs button.active { border-color:#b6e4c7; color:#d9f3e3; }
+  .tab-panel { border-top:0; border-radius:0 0 13px 13px; min-height:220px; padding:27px 30px; }
+  .tab-panel[hidden] { display:none; }
+  .tab-panel h2 { font-size:16px; }
+  .tab-panel p { font-size:12px; }
+  pre { color:#aac1b2; white-space:pre-wrap; font:12px/1.8 'Noto Sans KR',sans-serif; margin:25px 0 0; }
+  .data-rows { margin-top:22px; color:#b9c9bd; font-size:12px; }
+  .data-rows div { display:flex; justify-content:space-between; gap:20px; padding:12px 0; border-bottom:1px solid #30423b; }
+  .compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:25px; }
+  .compare div { border:1px solid #395045; border-radius:9px; padding:18px; display:grid; gap:12px; }
+  .compare span { font:11px 'IBM Plex Mono'; color:#8aa99a; }
+  .compare strong { font-size:16px; }
+  .page-footnote { color:#6e867a; font-size:10px; margin-top:20px; }
+  @media(max-width:720px) { .intro-row { display:block; } .engine-switch { display:inline-flex; margin-top:20px; } .decision-panel { display:block; } .decision-side { border-left:0; border-top:1px solid #496356; padding:18px 0 0; margin-top:20px; } .metric-grid { grid-template-columns:repeat(2,1fr); } .status-line .muted { margin-left:0; width:100%; } }
+</style>
