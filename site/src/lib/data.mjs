@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
-const siteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+// Astro rebundles this module into dist, so import.meta.url points at dist during a build.
+const siteRoot = process.env.SITE_ROOT ? resolve(process.env.SITE_ROOT) : process.cwd();
 const dataRoot = process.env.SITE_DATA_DIR ? resolve(process.env.SITE_DATA_DIR) : join(siteRoot, 'data', 'companies');
 
 function readJson(path) {

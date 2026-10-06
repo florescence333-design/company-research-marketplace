@@ -17,7 +17,7 @@ const cards = [
 const metricDisplay = (version, id) => {
   const fact = version.metrics.find(item => item.metric_id === id);
   if (!fact || fact.status !== 'ok' || typeof fact.value !== 'number') return '확인 불가';
-  return `${fact.value.toLocaleString('ko-KR')}${fact.unit === '%' ? '%' : ''}`;
+  return `${fact.value.toLocaleString('ko-KR')}${fact.unit === '%' ? '%' : ''}${fact.approximate ? ' (근사)' : ''}`;
 };
 ---
 <Layout title="RKLB 분석 · Company Research">
@@ -102,7 +102,7 @@ const metricDisplay = (version, id) => {
       document.querySelector('#report-text').textContent = version.report || '이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.';
       document.querySelectorAll('[data-metric]').forEach(item => {
         const fact = version.metrics.find(metric => metric.metric_id === item.dataset.metric);
-        item.textContent = fact?.status === 'ok' && typeof fact.value === 'number' ? fact.value.toLocaleString('ko-KR') + (fact.unit === '%' ? '%' : '') : '확인 불가';
+        item.textContent = fact?.status === 'ok' && typeof fact.value === 'number' ? fact.value.toLocaleString('ko-KR') + (fact.unit === '%' ? '%' : '') + (fact.approximate ? ' (근사)' : '') : '확인 불가';
       });
       document.querySelector('#financial-rows').textContent = version.metrics.length ? version.metrics.map(m => `${m.metric_id}: ${m.status === 'ok' ? m.value : '확인 불가'}`).join(' / ') : '아직 검증된 재무 수치가 없습니다.';
       document.querySelector('#source-rows').textContent = version.sources.length ? version.sources.map(s => s.title).join(' / ') : '표시할 검증 출처가 없습니다.';

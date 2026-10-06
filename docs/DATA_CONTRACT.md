@@ -1,6 +1,6 @@
 # 데이터 계약 — v1 초안
 
-이 문서는 `docs/DESIGN.md`의 1단계 산출물이다. **구축 순서 4단계에서 RKLB 실제 공시 데이터가 계약 검증을 통과하기 전까지 스키마를 수정할 수 있다.** 필드 변경은 사례·이유와 함께 기록하고, 기존 산출물을 몰래 다른 의미로 해석하지 않는다. 현재 스키마 디렉터리의 `v1`은 초안 계열을 가리키며 파일의 `schema_version`은 `v1-draft`이다.
+이 문서는 `docs/DESIGN.md`의 1단계 산출물이다. 2026-10-06에 **RKLB 실제 SEC Company Facts 결과가 이 계약의 구조 검증을 통과했다.** 단, 그 검증은 수치·기업분류·공시 본문까지 완전 검증했다는 뜻이 아니다. 3~5단계에서 필요한 필드를 계속 보완하므로 스키마는 여전히 **v1 초안**(`v1-draft`)이다. 필드 변경은 사례·이유와 함께 기록하고, 기존 산출물을 몰래 다른 의미로 해석하지 않는다.
 
 사용자 제공 Master Template 원본은 `docs/020. 기업분석_Master Template.md`이다. `template/sections.json`의 `S01`~`S16` ID와 제목은 이 파일의 최상위 번호 제목을 그대로 뽑았다. 원본 파일의 SHA-256을 함께 기록한다. 투자 프레임워크 v2는 **입력 대기**이다.
 
@@ -44,3 +44,17 @@
 ```
 
 샘플은 합성 자료이며 실제 RKLB 공시 분석이 아니다. 이 검증은 구조·일부 참조 일치만 확인한다. 수치 정확성·출처 내용·보호된 게시 가능 여부는 후속 단계에서 검증한다.
+
+## 4단계 실제 RKLB 검증
+
+`scripts/sec.py`는 SEC Company Facts에서 공시일이 분석 기준일을 넘지 않는 10-K·10-Q만 선택한다. 연간 흐름 값은 330~380일 기간을 요구하고 공시별 출처 ID·태그·기간·원본 SHA-256을 기록한다. 2023~2025년 매출·영업손익·순손익·영업현금흐름, 최신 현금·자산·부채·자본을 수집했다. EPS(TTM)는 최근 연속 4개 독립 분기 희석 EPS가 있으면 합산하고, 없으면 연간 순이익 + 최신 누적 순이익 − 전년 동기 누적 순이익을 최신 분기 희석 가중평균 주식 수로 나누어 **근사**로 표시한다. 135일이 넘은 주식 수나 누락 분모는 사용하지 않는다.
+
+```powershell
+$env:SEC_USER_AGENT=[Environment]::GetEnvironmentVariable('SEC_USER_AGENT','User')
+.venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --site-data
+$run=Get-ChildItem runs\RKLB\gpt | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+.venv\Scripts\python.exe scripts\verify_sec_run.py $run.FullName
+npm.cmd run build --prefix site
+```
+
+`data/`, `runs/`, `site/data/`는 Git에서 제외한다. SEC_USER_AGENT 값은 코드·출력·문서에 쓰지 않는다. `verify_sec_run.py`는 보관한 SEC 원본 해시와 선정 지표·출처를 다시 계산해 대조한다. 공시 본문 확인, 다른 결산월 기업 검증, AI의 재무 해석은 다음 작업이다.
