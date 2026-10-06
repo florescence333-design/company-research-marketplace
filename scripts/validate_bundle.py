@@ -51,11 +51,13 @@ def validate_bundle(folder: Path) -> list[str]:
                 errors.append(f"extracted-facts.json/facts/{index}/source_id: 알 수 없는 출처")
     report_path = folder / "report-items.json"
     if report_path.exists() and all(name in objects for name in REQUIRED):
-        from report import validate_report_items
+        from report import render_report, validate_report_items
         try:
             report = json.loads(report_path.read_text(encoding="utf-8"))
             errors.extend(f"report-items.json: {error}" for error in validate_report_items(report, objects))
-        except (OSError, json.JSONDecodeError) as exc:
+            if (folder / "report.md").read_text(encoding="utf-8") != render_report(report, objects):
+                errors.append("report-items.json: 보고서 본문과 report.md 불일치")
+        except (OSError, KeyError, json.JSONDecodeError) as exc:
             errors.append(f"report-items.json: 읽기 실패: {exc}")
     run_path = folder / "run.json"
     if run_path.exists():

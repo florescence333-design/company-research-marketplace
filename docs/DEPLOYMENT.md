@@ -1,6 +1,6 @@
 # 사이트 배포 메모 — 현재 로컬 검증 상태
 
-사이트 코드는 `site/`에 있다. 현재 **RKLB 실제 SEC 수치가 들어간 로컬 빌드**까지 완료했고, 원격 배포는 아직 되지 않았다. GitHub의 공개 플러그인 저장소와 비공개 사이트 저장소, Cloudflare 계정·Pages 프로젝트는 사용자 계정 로그인 후 구성해야 한다. 공개 플러그인 저장소에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 사이트 저장소는 비공개로 만들고 운영 자료는 그 저장소 안에서만 관리한다.
+사이트 코드는 `site/`에 있다. 현재 **RKLB 실제 SEC 수치가 들어간 로컬 빌드**까지 완료했고, 원격 Pages 배포는 아직 되지 않았다. 공개 플러그인 저장소 [`florescence333-design/company-research-marketplace`](https://github.com/florescence333-design/company-research-marketplace)와 비공개 사이트 저장소 `florescence333-design/company-research-site`의 `main`·`dev` 푸시는 완료했다. 공개 플러그인 저장소에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 운영 자료는 비공개 사이트 저장소 안에서만 관리한다.
 
 ## 로컬 화면
 
@@ -48,7 +48,7 @@ node scripts/check-deploy.mjs https://<확인할-주소> <사이트-저장소-�
 
 루트의 `scripts/export_site.py`는 Git이 추적하는 `site/` 코드와 로컬 게시 검증을 통과한 RKLB 선택 버전만 `deploy/site-repo/`에 복사한다. `.env`·`.dev.vars`·원본 SEC 캐시·다른 로컬 실행은 복사하지 않는다. `deploy/`는 루트 `.gitignore`에 포함되어 공개 플러그인 저장소에 들어가지 않는다. 이 PC의 `deploy/site-repo/`는 독립 Git 저장소로 초기화해 `main`·`dev` 로컬 브랜치를 준비했고, `npm ci`, `npm run build`, `npm test`가 통과했다. 공개 `build-info.json`은 독립 사이트 저장소 HEAD와 일치했다.
 
-계정 연결 후에는 이 독립 저장소를 **비공개** GitHub 저장소에 연결한다. Cloudflare Pages의 운영 브랜치를 `main`, 개발 미리보기 브랜치를 `dev`로 두고 양쪽에 동일한 인증 비밀을 설정한다. `dev` 미리보기의 별칭·고유 주소와 운영 주소에서 보호 페이지·공개 빌드 정보 경로를 각각 검사한다. 원격에서 확인하기 전에는 배포 성공으로 기록하지 않는다.
+이 독립 저장소는 **비공개** GitHub 저장소에 연결되어 `main`·`dev`를 푸시했다. Cloudflare Pages의 운영 브랜치를 `main`, 개발 미리보기 브랜치를 `dev`로 두고 양쪽에 동일한 인증 비밀을 설정한다. `dev` 미리보기의 별칭·고유 주소와 운영 주소에서 보호 페이지·공개 빌드 정보 경로를 각각 검사한다. 원격에서 확인하기 전에는 배포 성공으로 기록하지 않는다.
 
 현재 로컬 Pages Functions 검증은 다음 명령으로 실행했다. `.dev.vars`는 로컬 테스트용 무작위 값이며 `.gitignore`에 포함된다.
 

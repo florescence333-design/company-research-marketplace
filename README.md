@@ -15,10 +15,11 @@
 
 ## 의존성 설치와 키 없는 확인 — 약 3~6분
 
-공개 GitHub 주소는 계정 연결 후 여기에 추가한다. 그 전에는 전달받은 프로젝트 폴더의 루트에서 시작한다.
+공개 저장소에서 시작한다. 이미 이 프로젝트 폴더가 있으면 첫 두 명령을 건너뛰고 그 루트로 이동한다.
 
 ```powershell
-cd '프로젝트 폴더 경로'
+git clone https://github.com/florescence333-design/company-research-marketplace.git
+cd company-research-marketplace
 uv venv --python 3.14 .venv
 uv pip install --python .venv\Scripts\python.exe -r requirements-dev.txt
 npm.cmd ci --prefix site
@@ -43,15 +44,21 @@ npm.cmd run dev --prefix site -- --host 127.0.0.1 --port 4321
 
 ## Claude Code 플러그인 설치
 
-공개 저장소가 GitHub에 연결되면 Claude Code를 실행하고 아래 명령을 입력한다. `<소유자>/<저장소>`는 실제 공개 저장소 주소로 바꾼다. 이 원격 설치 경로는 계정 연결 전이므로 아직 실기 검증되지 않았다. 현재 `claude plugin validate --strict .` 형식 검사는 통과했다.
+프로젝트 루트에서 Claude Code를 실행한다. 로그인되지 않았다면 `/login`을 먼저 완료한다. 공개 저장소의 마켓플레이스 등록·플러그인 설치·활성화와 `claude plugin validate --strict .`는 이 PC에서 확인했다. **Claude AI의 실제 16섹션 분석 실행은 로그인 뒤 확인할 예정**이다.
+
+```powershell
+claude
+```
+
+Claude Code 대화 입력창에서 아래 명령을 순서대로 실행한다. 예상 소요 시간은 설치 1~3분, 첫 실제 RKLB 분석은 SEC 수집·AI 작성량에 따라 약 5~20분이며 아직 실측되지 않았다.
 
 ```text
-/plugin marketplace add <소유자>/<저장소>
+/plugin marketplace add florescence333-design/company-research-marketplace
 /plugin install company-analysis@company-research-marketplace
 /company RKLB
 ```
 
-공통 스크립트는 Codex에서 `--engine gpt`, Claude Code에서 `--engine claude`를 사용한다. Claude Code가 로그인되지 않은 PC에서는 실제 `/company` 호출이 시작되지 않는다. 설치와 로그인 뒤에는 `/company-publish RKLB`로 기존 실행의 로컬 재검증·게시도 할 수 있다. 로컬 빌드 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
+`/company RKLB`는 공시 수집 후 Claude가 16섹션을 직접 보강하고, 출처·판정 보류·보고서 본문을 검증한 뒤 로컬 화면에 게시하도록 설계했다. 실패 시 결과 경로와 검증 오류를 확인한다. 공통 스크립트는 Codex에서 `--engine gpt`, Claude Code에서 `--engine claude`를 사용한다. 설치와 로그인 뒤에는 `/company-publish RKLB`로 기존 실행의 로컬 재검증·게시도 할 수 있다. 로컬 빌드 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
 
 ## 현재 범위
 
