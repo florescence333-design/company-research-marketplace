@@ -39,7 +39,7 @@ def select_bundle(ticker, engine, run_id=None):
         for folder in base.iterdir():
             try:
                 meta = _json(folder / "meta.json")
-                if not meta["sample"]:
+                if not meta["sample"] and not (folder / "review-only.json").exists():
                     candidates.append((datetime.fromisoformat(meta["generated_at"]), folder))
             except (OSError, ValueError, KeyError, json.JSONDecodeError):
                 continue
@@ -56,6 +56,8 @@ def check_bundle(folder):
     meta = _json(folder / "meta.json")
     if meta["sample"]:
         errors.append("합성 샘플 게시 금지")
+    if (folder / "review-only.json").exists():
+        errors.append("일부 섹션 검토본은 전체 보고서로 게시할 수 없음")
     try:
         verify_resume(folder, meta["ticker"], meta["engine"])
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:

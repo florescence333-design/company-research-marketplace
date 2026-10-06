@@ -13,7 +13,7 @@
 | `template/sections.json` | `scripts/build_sections.py` | `schema_version`, `source_path`, `source_sha256`, `sections[]`의 `section_id/title/required` | 원본 템플릿의 1~16번 제목과 일치. 변경 시 다시 생성 |
 | `meta.json` | 실행 스크립트 | `schema_version`, `run_id`, `data_snapshot_id`, 시간대 있는 `analysis_as_of/generated_at`, `ticker/CIK`, `engine`, `sample`, 코드·템플릿·기술 기본값·판정 버전 | 한 결과 묶음의 기준 ID. `sample=true`는 합성 시연을 뜻함 |
 | `metrics.json` | 계산·수집 스크립트 | `run_id`, `data_snapshot_id`, `metrics[]`의 `metric_id/value/status/unit/approximate/reason/period_start/period_end/source_ids` | ID와 스냅샷은 meta와 일치. 출처 ID는 sources에 존재해야 함 |
-| `sources.json` | 수집 스크립트 | `sources[]`의 `source_id/url/title/accessed_at/location`, 선택적으로 공시 번호·해시·인용문 | URL 확인만으로 내용 진실성을 보증하지 않음 |
+| `sources.json` | 수집 스크립트·AI 웹 조사 | `sources[]`의 `source_id/url/title/accessed_at/location`, 선택적으로 공시 번호·해시·인용문 | `sec-...`는 원본 재계산으로 고정. `web-...`는 확인한 짧은 인용문과 그 UTF-8 SHA-256 필수. URL 확인만으로 내용 진실성을 보증하지 않음 |
 | `decision.json` | 임시 판정 스크립트 | `schema_version=v1-draft`, `decision_policy_version=v0.1`, `verdict=판정 보류 (v0.1)`, `reason`, null 축, `pending_rules` | 실제 판정 불가. 같은 실행·스냅샷을 참조 |
 | `run.json` | 실행 스크립트 | 실행 ID·티커·엔진·기준시점·스냅샷·옵션·단계별 `step_id/state`와 선택적 입출력 SHA-256 | 단계 상태는 `pending/running/completed/failed/blocked` |
 | `extracted-facts.json` | 10-K 본문 추출 | `fact_id/value/unit/source_id/location/verification`, 실행·스냅샷 ID | 공식 10-K 원본 해시와 문구 재추출, 출처 ID 참조를 확인. 현재 RKLB 일부 사업 사실에 한정 |
@@ -36,6 +36,8 @@
 위 예정 필드를 지금 존재하는 스키마나 구현으로 주장하지 않는다. 실제 데이터를 다루며 필요한 필드부터 확장하고 `v1-draft` 변경 이력을 이 문서에 추가한다. 세부 판정 기준이 없다는 상태와 실제 입력 데이터가 없다는 상태는 구별한다.
 
 5단계에서는 `meta.company_name`을 선택 필드로 추가하고 `report-items.schema.json`을 만들었다. `report-items.json`은 모든 섹션을 Master Template 순서대로 담고, 작성 상태와 사용한 지표·출처 ID를 적는다. 현재 내용은 SEC 숫자만으로 만들 수 있는 부분 보고서이며, 자료가 없는 섹션은 **자료 확인 대기**라고 명시한다. 수치 성장률은 코드에서 계산한다. 사업 경쟁력·밸류에이션·최종 매수/회피 판정은 작성하지 않는다.
+
+AI 심화 작성에서는 섹션마다 실제 웹 검색을 하고 `search_queries[]`에 사용한 검색어를 남긴다. 확인한 외부 자료는 기존 SEC 출처를 바꾸지 않고 `sources.json`에 고유한 `web-...` ID로 추가한다. `content_sha256`은 **해당 짧은 `excerpt`의 UTF-8 바이트** 해시이며 웹페이지 전체 해시로 오해하지 않는다. `자료 확인 대기`는 검색 후에도 근거가 없는 하위 질문에만 쓴다. 전체 AI 실행의 검증기는 16개 섹션 모두의 검색 기록과 부분 작성 섹션의 웹 출처를 요구한다. 사용자가 지정한 일부 섹션 재검토는 `ai_report.py --sections <ID...>`로 해당 섹션만 검사하며 기존 전체 보고서를 자동 게시하지 않는다. S12 본문은 연도별 한국어 지표 표와 해석으로 쓰고 내부 지표 ID는 `metric_ids`에서만 관리한다. 이 구조도 다른 기업 검증 전까지 **v1 초안**이다.
 
 후속 보강으로 RKLB 2025년 10-K 본문에서 직접 일치한 사업 사실을 `extracted-facts.json`에 담고, `report-items.json`의 선택적 `fact_ids`로 사용 섹션에 연결했다. 본문이 없거나 문구가 맞지 않으면 추정해서 채우지 않는다. 사업부 매출 합계는 Company Facts 총매출과 대조하고, 10-K 원본 SHA-256·accession·문서 내 위치를 출처에 남긴다. 10-K 파일 해시는 `meta.filing_sha256`에 기록한다. 이 역시 **v1 초안**이며 다른 기업과 다른 공시 형식에 일반화되었다는 뜻은 아니다.
 

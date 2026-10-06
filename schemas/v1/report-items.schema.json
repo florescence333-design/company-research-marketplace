@@ -16,6 +16,7 @@
         "status": {"enum": ["partial", "unavailable"]},
         "body": {"type": "string", "minLength": 1},
         "source_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "search_queries": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "metric_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "fact_ids": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
       },

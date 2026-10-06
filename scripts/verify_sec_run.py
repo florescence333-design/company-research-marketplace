@@ -37,7 +37,9 @@ def verify_run(folder: Path, raw_path: Path) -> list[str]:
             actual = actual["metrics"]
             expected_value = expected[name]["metrics"]
         elif name == "sources":
-            actual = actual["sources"]
+            # Web research extends the source catalog, but may never replace
+            # or alter a source reconstructed from the SEC snapshot.
+            actual = [source for source in actual["sources"] if source.get("source_id", "").startswith("sec-")]
             expected_value = expected[name]["sources"]
         else:
             actual = actual["facts"]

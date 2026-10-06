@@ -39,6 +39,16 @@ def validate_bundle(folder: Path) -> list[str]:
                 if key in obj and obj[key] != meta.get(key):
                     errors.append(f"{name}.json/{key}: meta.json과 불일치")
     if "metrics" in objects and "sources" in objects:
+        source_list = objects["sources"].get("sources", [])
+        ids = [item.get("source_id") for item in source_list]
+        if len(ids) != len(set(ids)):
+            errors.append("sources.json: 중복 출처 ID")
+        for item in source_list:
+            if item.get("source_id", "").startswith("web-"):
+                excerpt = item.get("excerpt")
+                digest = item.get("content_sha256")
+                if not excerpt or not digest or hashlib.sha256(excerpt.encode("utf-8")).hexdigest() != digest:
+                    errors.append(f"sources.json/{item.get('source_id')}: 웹 인용문 SHA-256 불일치 또는 누락")
         sources = {item.get("source_id") for item in objects["sources"].get("sources", [])}
         for index, metric in enumerate(objects["metrics"].get("metrics", [])):
             for source_id in metric.get("source_ids", []):

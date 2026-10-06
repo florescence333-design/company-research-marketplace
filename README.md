@@ -54,7 +54,8 @@ npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 | 새 폴더 신뢰 및 설치된 스킬 읽기 | Claude Code가 현재 빈 폴더와 플러그인 지침을 사용한다. |
 | `Bash(uv run --no-project --python 3.14 <플러그인>/scripts/bootstrap.py)` | 설치된 플러그인의 공개 파일을 `.company-research/`로 복사하고 Python·`jsonschema`·npm 패키지를 준비한다. 첫 실행에는 다운로드가 발생할 수 있다. |
 | `Bash(.company-research/.venv/Scripts/python.exe scripts/company.py RKLB --engine claude)` | SEC 공시를 읽고 `data/`·`runs/`에 캐시·코드 초안을 만든 뒤 사이트를 로컬 빌드·검사한다. `--new` 등 선택 옵션이 뒤에 붙을 수 있다. |
-| `Read/Edit(.company-research/runs/.../report-items.json)` | Claude가 공시 근거를 바탕으로 16개 섹션의 해석·출처 ID를 작성한다. 재무 원본과 비밀 값은 수정 대상이 아니다. |
+| `WebSearch`·`WebFetch` 또는 설치 환경의 웹 검색·열람 도구 | 16개 섹션 각각에 대해 IR·실적 자료·경쟁사·규제·산업 자료를 검색하고 실제 근거를 확인한다. 검색 결과를 외부로 게시하는 명령은 아니다. |
+| `Read/Edit(.company-research/runs/.../report-items.json, sources.json)` | Claude가 16개 섹션의 해석·검색어·출처 ID를 작성하고 확인한 웹 출처만 추가한다. SEC 수치·기존 SEC 출처·비밀 값은 수정 대상이 아니다. |
 | `Bash(.../python.exe scripts/validate_bundle.py ...)`, `Bash(.../python.exe scripts/verify_sec_run.py ...)` | JSON 구조, 출처, SEC 원본과 계산값을 다시 검증한다. |
 | `Bash(.../python.exe scripts/ai_report.py <실행 폴더> --model claude-code)` | AI 작성분의 출처·섹션·고정 판정을 확인하고 보고서와 도식을 확정한다. |
 | `Bash(.../python.exe scripts/publish.py RKLB --engine claude --run-id <실행 ID>)` | 검증된 결과를 로컬 사이트에 선택하고 빌드·테스트한다. GitHub 푸시나 Cloudflare 배포는 하지 않는다. |
