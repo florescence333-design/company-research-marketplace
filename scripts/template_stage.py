@@ -11,6 +11,21 @@ MASTER = json.loads((ROOT / "template" / "sections.json").read_text(encoding="ut
 KINDS = {"원본 그대로", "보강", "신설", "전면 교체"}
 
 
+def render_metric_definition(definition):
+    if isinstance(definition, str):
+        return definition
+    if not isinstance(definition, dict):
+        raise ValueError("지표 정의는 문자열 또는 필드 객체여야 함")
+    required = ("metric", "formula", "unit", "period", "source")
+    if any(not isinstance(definition.get(key), str) or not definition[key].strip() for key in required):
+        raise ValueError("지표 정의 객체의 이름·공식·단위·기간·출처 누락")
+    result = (f"{definition['metric']} = {definition['formula']} · 단위: {definition['unit']} · "
+              f"기간: {definition['period']} · 출처: {definition['source']}")
+    if definition.get("note"):
+        result += f" · 주의: {definition['note']}"
+    return result
+
+
 def create_template_draft(folder: Path) -> None:
     meta = json.loads((folder / "meta.json").read_text(encoding="utf-8"))
     notes = {
@@ -42,7 +57,7 @@ def render_template(notes: dict) -> str:
                           f"**개정 이유:** {item['rationale']}", "", "**확인할 질문·체크리스트**", ""])
             lines.extend(f"- {check}" for check in item["checklist"])
             lines.extend(["", "**지표 정의**", ""])
-            lines.extend(f"- {definition}" for definition in item["metric_definitions"])
+            lines.extend(f"- {render_metric_definition(definition)}" for definition in item["metric_definitions"])
             lines.extend(["", f"**쉬운 비유:** {item['analogy']}", ""])
     if notes["source_ids"]:
         lines.extend(["## 프레임워크 출처", "", ", ".join(notes["source_ids"]), ""])

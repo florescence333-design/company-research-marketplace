@@ -7,10 +7,18 @@ from pathlib import Path
 from test_contract import ROOT
 
 sys.path.insert(0, str(ROOT / "scripts"))
-from template_stage import create_template_draft, render_template, validate_template
+from template_stage import create_template_draft, render_metric_definition, render_template, validate_template
 
 
 class TemplateStageTests(unittest.TestCase):
+    def test_structured_metric_definition_is_human_readable(self):
+        rendered = render_metric_definition({"metric": "현금 소진 기간", "formula": "현금 / 연간 순유출",
+                                             "unit": "년", "period": "최근 12개월", "source": "SEC 10-Q",
+                                             "note": "순유출이 없으면 계산하지 않음"})
+        self.assertIn("현금 소진 기간 = 현금 / 연간 순유출", rendered)
+        self.assertIn("기간: 최근 12개월", rendered)
+        self.assertNotIn("{'metric'", rendered)
+
     def test_draft_is_not_complete_and_completed_notes_require_real_framework(self):
         with tempfile.TemporaryDirectory() as temp:
             folder = Path(temp)
