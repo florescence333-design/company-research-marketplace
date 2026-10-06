@@ -5,7 +5,7 @@
 | 단계 | 항목 | 현재 상태 | 다음 확인 |
 | --- | --- | --- | --- |
 | 2 | Claude Code 스킬의 실제 AI 호출 | 로컬 마켓플레이스 등록·플러그인 설치·활성화는 통과; AI 호출은 CLI 로그인 필요 | 사용자가 `/login` 후 `/company` 스킬 실행 |
-| 2 | Twelve Data 무료 배당·실적 발표 일정 | API 키가 없어 계정별 권한 미확인 | 로컬 키 설정 후 각각 호출·기록, 미제공 시 SEC/웹 리서치 대체 |
+| 2 | Twelve Data 무료 배당·실적 발표 일정 | API 키가 없어 계정별 권한 미확인. 공식 문서상 배당 `/dividends`는 Grow 이상 | 로컬 키 설정 후 `scripts/check_twelve_access.py` 호출, 미제공 시 SEC/웹 리서치 대체 |
 | 3 | 공개 GitHub 마켓플레이스 저장소 | 이 브라우저의 GitHub 세션은 로그아웃 상태, 원격 없음 | GitHub 로그인 후 공개 저장소 생성·연결·푸시·설치 확인 |
 | 3 | 비공개 사이트 저장소·Cloudflare Pages | Cloudflare 계정 없음 | 계정 준비 후 비공개 저장소·Pages 생성, dev/운영 비밀번호 보호·빌드 정보 확인 |
 | 3 | 사이트 인증의 실제 원격 검증 | 로컬 Pages Functions에서는 통과, 원격 미실행 | Cloudflare 미리보기 별칭·고유 URL·운영 URL에서 반복 |
