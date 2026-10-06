@@ -42,7 +42,7 @@ Set-Location "$env:USERPROFILE\Documents\CompanyResearchTest"
 npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 ```
 
-화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. `/company RKLB`는 SEC 수집 → 코드 초안 → S0.5 커스텀 템플릿 → Claude의 섹션 묶음별 근거 분석 → 보고서 기반 도식 → 검증 → 로컬 게시 순서다. 각 묶음을 저장하므로 사용량 한도 이후 같은 실행 폴더에서 이어갈 수 있다. 투자는 `판정 보류 (v0.1)`로 표시한다. **2026-10-07에 개발 폴더 밖의 새 빈 폴더에서 마켓플레이스 플러그인 0.3.2를 `user` 범위로 설치하고, 자체 Python 환경 준비·실제 RKLB SEC 수집·코드 초안·출처 검증·로컬 게시까지 확인했다.** 다만 **새 폴더에서 `/company RKLB` 한 줄의 Claude AI 작성 단계까지는 아직 검증하지 않았다.** Git이 없는 새 작업 폴더의 공개 `build-info.json`에는 `commit_sha: null`을 기록하며, Cloudflare 배포에서는 실제 커밋 해시가 필수다.
+화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. `/company RKLB`는 SEC 수집 → 코드 초안 → S0.5 커스텀 템플릿 → Claude의 섹션 묶음별 근거 분석 → 보고서 기반 도식 → 검증 → 로컬 게시 순서다. 각 묶음을 저장하므로 사용량 한도 이후 같은 실행 폴더에서 이어갈 수 있다. 투자는 `판정 보류 (v0.1)`로 표시한다. **2026-10-07에 개발 폴더 밖의 새 빈 폴더에서 공개 마켓플레이스 플러그인 0.4.2의 자체 Python 3.14/npm 준비·실제 RKLB SEC 수집·코드 초안·로컬 게시를 실행했고, 사이트 테스트 13개와 SEC 재계산·JSON 스키마 검사를 통과했다.** 다만 **새 폴더에서 `/company RKLB` 한 줄의 Claude AI 작성 단계까지는 사용량 한도로 검증하지 못했다.** Git이 없는 새 작업 폴더의 공개 `build-info.json`에는 `commit_sha: null`을 기록하며, Cloudflare 배포에서는 실제 커밋 해시가 필수다.
 
 ## Claude Code에서 예상되는 권한 승인
 
