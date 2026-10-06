@@ -21,6 +21,8 @@ __pycache__/
 runs/
 data/
 docs/reference/
+docs/overnight-todo.md
+docs/morning-report.md
 .superpowers/
 .claude/
 
