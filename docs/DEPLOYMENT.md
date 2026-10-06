@@ -1,6 +1,6 @@
-# 사이트 배포 메모 — 운영·dev 첫 배포 상태
+# 사이트 배포 메모 — 운영·dev 인증 확인
 
-사이트 코드는 `site/`에 있다. **RKLB 실제 SEC 수치와 Claude·Codex의 검증된 AI 보고서가 들어간 로컬 빌드**를 완료했다. 비공개 사이트 저장소 `florescence333-design/company-research-site`의 `main` 운영 배포(`c80294f`)와 `dev` 미리보기 배포(`a551e94`)는 Cloudflare Pages에서 빌드 성공했다. `dev` 별칭은 [dev.company-research-site.pages.dev](https://dev.company-research-site.pages.dev), 배포별 고유 주소는 [db9c0c9f.company-research-site.pages.dev](https://db9c0c9f.company-research-site.pages.dev)다. 공개 `/build-info.json`은 `dev` 커밋 전체 해시 `a551e9453f6da51333aec53e9f40c7ace5f6d285`를 반환했다. **운영·미리보기 환경의 인증 비밀 값은 아직 설정되지 않아 `/login`과 보호 경로가 503이며, 실제 사이트 사용과 로그인 검증은 미완료다.** 공개 플러그인 저장소 [`florescence333-design/company-research-marketplace`](https://github.com/florescence333-design/company-research-marketplace)에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 운영 자료는 비공개 사이트 저장소 안에서만 관리한다.
+사이트 코드는 `site/`에 있다. 비공개 사이트 저장소 `florescence333-design/company-research-site`의 `main` 운영 배포(`c80294f`)와 `dev` 미리보기 배포(`a551e94`)를 인증 설정 후 다시 배포해 검증했다. 운영 주소는 [company-research-site.pages.dev](https://company-research-site.pages.dev), 새 운영 고유 주소는 [77cb5c63.company-research-site.pages.dev](https://77cb5c63.company-research-site.pages.dev)다. 미리보기 별칭은 [dev.company-research-site.pages.dev](https://dev.company-research-site.pages.dev), 새 미리보기 고유 주소는 [76cb04d5.company-research-site.pages.dev](https://76cb04d5.company-research-site.pages.dev)다. 운영에서는 Claude AI 분석이 선택 가능하며 GPT는 코드 초안이다. 미리보기에서는 Claude·Codex AI 분석을 모두 볼 수 있다. 공개 플러그인 저장소 [`florescence333-design/company-research-marketplace`](https://github.com/florescence333-design/company-research-marketplace)에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 운영 자료는 비공개 사이트 저장소 안에서만 관리한다.
 
 ## 로컬 화면
 
@@ -59,4 +59,4 @@ cd site
 npx.cmd wrangler pages dev dist --port 8788 --ip 127.0.0.1
 ```
 
-다른 PowerShell 창의 저장소 루트에서 `node site/scripts/check-local-auth.mjs`를 실행하면 공개 빌드 정보·보호 경로·서명 쿠키·변조 쿠키를 검사한다. 인증 비밀 설정 후 운영·dev 별칭·dev 배포별 고유 주소에서 위의 배포 검사와 로그인 후 화면 확인을 다시 수행한다.
+다른 PowerShell 창의 저장소 루트에서 `node site/scripts/check-local-auth.mjs`를 실행하면 공개 빌드 정보·보호 경로·서명 쿠키·변조 쿠키를 검사한다. 2026-10-07 원격 검사에서 운영·미리보기 별칭과 새 고유 주소의 `/build-info.json`이 각각 커밋 `c80294fc62049240334a044ca2f0492afeabe67e`, `a551e9453f6da51333aec53e9f40c7ace5f6d285`를 공개했고, 비로그인 목록·RKLB·분석 데이터 경로는 `/login`으로 302 이동했다. 두 환경 모두 무작위 틀린 비밀번호는 401이며 쿠키를 발급하지 않았다. 사용자가 각 로그인 화면에서 정상 비밀번호를 직접 입력한 뒤 두 보호된 RKLB 화면과 16개 보고서 섹션이 표시되는 것을 확인했다. 실제 30일 만료와 원격 비밀번호 변경 후 세션 무효화는 별도 검증이 필요하다.
