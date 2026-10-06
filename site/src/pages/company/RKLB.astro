@@ -88,7 +88,7 @@ const metricDisplay = (version, id) => {
         </div>
         <div class="panel tab-panel" data-panel="2" hidden><h2>시각화</h2><p class="muted">검증된 연간 매출 추이입니다. 사업 플라이휠·밸류체인은 근거 검토 후 생성합니다.</p><div id="diagram-render">{current.diagram ? '도식 준비 중' : '미생성'}</div><details><summary>Mermaid 원문</summary><pre id="diagram-text">{current.diagram || '미생성'}</pre></details></div>
         <div class="panel tab-panel" data-panel="3" hidden><h2>Master Template</h2><p class="muted">확정본 16개 섹션의 ID·제목과 이 보고서의 작성 상태입니다.</p><div id="template-rows" class="data-rows">{current.reportItems.length ? current.reportItems.map(s => <div><span>{s.section_id} {s.title}</span><strong>{s.status === 'partial' ? '부분 작성' : '자료 확인 대기'}</strong></div>) : <span>실제 보고서 생성 대기</span>}</div></div>
-        <div class="panel tab-panel" data-panel="4" hidden><h2>출처·데이터</h2><p class="muted">기준시점·수집 상태·출처를 함께 확인합니다.</p><div id="source-rows" class="data-rows">{current.sources.length ? current.sources.map(s => <div><span>{s.title}</span><a href={s.url} target="_blank" rel="noopener noreferrer">원문 ↗</a></div>) : <span>표시할 검증 출처가 없습니다.</span>}</div></div>
+        <div class="panel tab-panel" data-panel="4" hidden><h2>출처·데이터</h2><p class="muted">보고서의 출처 ID를 아래 공시 위치와 대조할 수 있습니다.</p><div id="source-rows" class="data-rows">{current.sources.length ? current.sources.map(s => <div class="source-row"><span><code>{s.source_id}</code><strong>{s.title}</strong><small>{s.location}</small></span><a href={s.url} target="_blank" rel="noopener noreferrer">원문 ↗</a></div>) : <span>표시할 검증 출처가 없습니다.</span>}</div></div>
         <div class="panel tab-panel" data-panel="5" hidden><h2>두 엔진 비교</h2><p class="muted">같은 항목의 차이와 데이터 기준시점 차이를 보여줍니다.</p><div class="compare"><div><span>CLAUDE판</span><strong>{versions.claude ? versions.claude.decision.verdict : '미생성'}</strong></div><div><span>GPT판</span><strong>{versions.gpt ? versions.gpt.decision.verdict : '미생성'}</strong></div></div></div>
         <p class="page-footnote">판정 기준 v1의 세부 규칙이 미정입니다. 이 화면의 v0.1 보류 표시는 투자 권고가 아닙니다.</p>
       </div>
@@ -131,6 +131,32 @@ const metricDisplay = (version, id) => {
         target.append(article);
       }
     }
+    function renderSources(items) {
+      const target = document.querySelector('#source-rows');
+      target.replaceChildren();
+      if (!items.length) { target.textContent = '표시할 검증 출처가 없습니다.'; return; }
+      for (const source of items) {
+        const row = document.createElement('div');
+        row.className = 'source-row';
+        const label = document.createElement('span');
+        const id = document.createElement('code');
+        id.textContent = source.source_id;
+        const title = document.createElement('strong');
+        title.textContent = source.title;
+        const location = document.createElement('small');
+        location.textContent = source.location;
+        label.append(id, title, location);
+        const link = document.createElement('a');
+        link.textContent = '원문 ↗';
+        if (source.url.startsWith('https://')) {
+          link.href = source.url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+        }
+        row.append(label, link);
+        target.append(row);
+      }
+    }
     async function renderDiagram(source) {
       const target = document.querySelector('#diagram-render');
       if (!source) { target.textContent = '미생성'; return; }
@@ -164,7 +190,7 @@ const metricDisplay = (version, id) => {
         item.textContent = fact?.status === 'ok' && typeof fact.value === 'number' ? fact.value.toLocaleString('ko-KR') + (fact.unit === '%' ? '%' : '') + (fact.approximate ? ' (근사)' : '') : '확인 불가';
       });
       document.querySelector('#financial-rows').textContent = version.metrics.length ? version.metrics.map(m => `${m.metric_id}: ${m.status === 'ok' ? m.value : '확인 불가'}`).join(' / ') : '아직 검증된 재무 수치가 없습니다.';
-      document.querySelector('#source-rows').textContent = version.sources.length ? version.sources.map(s => s.title).join(' / ') : '표시할 검증 출처가 없습니다.';
+      renderSources(version.sources);
     }));
   </script>
 </Layout>
@@ -213,6 +239,11 @@ const metricDisplay = (version, id) => {
   details { margin-top:22px; color:#779889; font-size:11px; }
   .data-rows { margin-top:22px; color:#b9c9bd; font-size:12px; }
   .data-rows div { display:flex; justify-content:space-between; gap:20px; padding:12px 0; border-bottom:1px solid #30423b; }
+  .source-row span { min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .source-row code { color:#86b9aa; font:11px 'IBM Plex Mono',monospace; }
+  .source-row strong { color:#c9d9cd; font-weight:500; }
+  .source-row small { color:#718e7f; overflow-wrap:anywhere; }
+  .source-row a { color:#b7e4cd; white-space:nowrap; align-self:center; }
   .compare { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:25px; }
   .compare div { border:1px solid #395045; border-radius:9px; padding:18px; display:grid; gap:12px; }
   .compare span { font:11px 'IBM Plex Mono'; color:#8aa99a; }
