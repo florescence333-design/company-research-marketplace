@@ -15,7 +15,7 @@
 
 ## 조교 PC의 빈 폴더에서 설치·실행
 
-개발 저장소를 복제하거나 `.venv`를 미리 만들 필요가 없다. PowerShell에서 새 빈 폴더를 만들고 그 안에서 Claude Code를 실행한다. 첫 실행의 Python·패키지·사이트 준비에는 약 3~10분, SEC 수집에는 약 2~5분이 걸릴 수 있다. AI 작성 시간은 아직 슬래시 명령 전체로 실측하지 않았다.
+개발 저장소를 복제하거나 `.venv`를 미리 만들 필요가 없다. PowerShell에서 새 빈 폴더를 만들고 그 안에서 Claude Code를 실행한다. 플러그인은 `user` 범위로 설치해 어느 작업 폴더에서도 활성화한다. 첫 실행의 Python·패키지·사이트 준비에는 약 3~10분, SEC 수집에는 약 2~5분이 걸릴 수 있다. AI 작성 시간은 아직 슬래시 명령 전체로 실측하지 않았다.
 
 ```powershell
 New-Item -ItemType Directory -Path "$env:USERPROFILE\Documents\CompanyResearchTest"
@@ -42,7 +42,7 @@ Set-Location "$env:USERPROFILE\Documents\CompanyResearchTest"
 npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 ```
 
-화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. `/company RKLB`는 SEC 수집 → 코드 초안 → Claude의 16섹션 근거 검토 → 검증 → 로컬 게시를 목표로 한다. 투자는 `판정 보류 (v0.1)`로 표시한다. 공개 마켓플레이스 설치와 두 AI 엔진의 분리 실행·로컬 게시는 확인했지만, **새 폴더에서 `/company RKLB` 한 줄의 Claude AI 단계까지는 사용량 제한으로 아직 검증하지 않았다.** Git이 없는 새 작업 폴더의 공개 `build-info.json`에는 `commit_sha: null`을 기록하며, Cloudflare 배포에서는 실제 커밋 해시가 필수다. 로컬 게시 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
+화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. `/company RKLB`는 SEC 수집 → 코드 초안 → Claude의 16섹션 근거 검토 → 검증 → 로컬 게시를 목표로 한다. 투자는 `판정 보류 (v0.1)`로 표시한다. **2026-10-07에 개발 폴더 밖의 새 빈 폴더에서 마켓플레이스 플러그인 0.3.2를 `user` 범위로 설치하고, 자체 Python 환경 준비·실제 RKLB SEC 수집·코드 초안·출처 검증·로컬 게시·사이트 테스트 10개 통과까지 확인했다.** 이전에 만든 Claude/Codex 16섹션 AI 결과도 각각 검증·로컬 게시했다. 다만 **새 폴더에서 `/company RKLB` 한 줄의 Claude AI 작성 단계까지는 사용량 제한으로 아직 검증하지 않았다.** Git이 없는 새 작업 폴더의 공개 `build-info.json`에는 `commit_sha: null`을 기록하며, Cloudflare 배포에서는 실제 커밋 해시가 필수다. 로컬 게시 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
 
 ## Claude Code에서 예상되는 권한 승인
 
@@ -50,13 +50,14 @@ npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 
 | 승인 화면에 나올 작업 | 하는 일 |
 | --- | --- |
+| `/plugin marketplace add ...`, `/plugin install ...` (설치 시) | 공개 GitHub 마켓플레이스를 등록하고 `company-analysis` 플러그인을 `user` 범위로 설치한다. |
 | 새 폴더 신뢰 및 설치된 스킬 읽기 | Claude Code가 현재 빈 폴더와 플러그인 지침을 사용한다. |
-| `uv run --no-project --python 3.14 <플러그인>/scripts/bootstrap.py` | 설치된 플러그인의 공개 파일을 `.company-research/`로 복사하고 Python·`jsonschema`·npm 패키지를 준비한다. 첫 실행에는 다운로드가 발생할 수 있다. |
-| `.company-research/.venv/Scripts/python.exe scripts/company.py RKLB --engine claude` | SEC 공시를 읽고 `data/`·`runs/`에 캐시·코드 초안을 만든 뒤 사이트를 로컬 빌드·검사한다. `--new` 등 선택 옵션이 뒤에 붙을 수 있다. |
-| `.company-research/runs/.../report-items.json` 읽기·수정 | Claude가 공시 근거를 바탕으로 16개 섹션의 해석·출처 ID를 작성한다. 재무 원본과 비밀 값은 수정 대상이 아니다. |
-| `scripts/validate_bundle.py`, `scripts/verify_sec_run.py` | JSON 구조, 출처, SEC 원본과 계산값을 다시 검증한다. |
-| `scripts/ai_report.py <실행 폴더> --model claude-code` | AI 작성분의 출처·섹션·고정 판정을 확인하고 보고서와 도식을 확정한다. |
-| `scripts/publish.py RKLB --engine claude --run-id <실행 ID>` | 검증된 결과를 로컬 사이트에 선택하고 빌드·테스트한다. GitHub 푸시나 Cloudflare 배포는 하지 않는다. |
+| `Bash(uv run --no-project --python 3.14 <플러그인>/scripts/bootstrap.py)` | 설치된 플러그인의 공개 파일을 `.company-research/`로 복사하고 Python·`jsonschema`·npm 패키지를 준비한다. 첫 실행에는 다운로드가 발생할 수 있다. |
+| `Bash(.company-research/.venv/Scripts/python.exe scripts/company.py RKLB --engine claude)` | SEC 공시를 읽고 `data/`·`runs/`에 캐시·코드 초안을 만든 뒤 사이트를 로컬 빌드·검사한다. `--new` 등 선택 옵션이 뒤에 붙을 수 있다. |
+| `Read/Edit(.company-research/runs/.../report-items.json)` | Claude가 공시 근거를 바탕으로 16개 섹션의 해석·출처 ID를 작성한다. 재무 원본과 비밀 값은 수정 대상이 아니다. |
+| `Bash(.../python.exe scripts/validate_bundle.py ...)`, `Bash(.../python.exe scripts/verify_sec_run.py ...)` | JSON 구조, 출처, SEC 원본과 계산값을 다시 검증한다. |
+| `Bash(.../python.exe scripts/ai_report.py <실행 폴더> --model claude-code)` | AI 작성분의 출처·섹션·고정 판정을 확인하고 보고서와 도식을 확정한다. |
+| `Bash(.../python.exe scripts/publish.py RKLB --engine claude --run-id <실행 ID>)` | 검증된 결과를 로컬 사이트에 선택하고 빌드·테스트한다. GitHub 푸시나 Cloudflare 배포는 하지 않는다. |
 
 `/company-publish RKLB`는 기존 실행을 다시 검증·로컬 게시하며 `--run-id`를 받을 수 있다. 권한 질문에서 위 범위를 벗어난 경로나 외부 전송 명령이 보이면 승인하지 말고 해당 명령을 확인한다. 자세한 배포 상태는 [배포 안내](docs/DEPLOYMENT.md)에 있다.
 
