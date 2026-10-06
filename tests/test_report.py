@@ -58,6 +58,22 @@ class ReportTests(unittest.TestCase):
         report["sections"][8]["fact_ids"] = ["unverified-fact"]
         self.assertTrue(validate_report_items(report, self.bundle))
 
+    def test_four_year_revenue_history_is_visible_as_three_growth_intervals_and_cagr(self):
+        entries = [{"val": value, "start": f"{year}-01-01", "end": f"{year}-12-31",
+                    "filed": f"{year + 1}-03-01", "form": "10-K", "accn": "0001819994-26-000001"}
+                   for year, value in ((2022, 125), (2023, 150), (2024, 180), (2025, 216))]
+        data = {"cik": 1819994, "entityName": "Rocket Lab USA, Inc.", "facts": {"us-gaap": {
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": entries}}
+        }}}
+        bundle = build_sec_bundle(data, b"report growth", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        report = build_report_items(bundle)
+        section = report["sections"][1]
+        self.assertIn("2023년 20.0%", section["body"])
+        self.assertIn("2024년 20.0%", section["body"])
+        self.assertIn("2025년 20.0%", section["body"])
+        self.assertIn("3년 CAGR 20.0%", section["body"])
+        self.assertEqual(validate_report_items(report, bundle), [])
+
 
 if __name__ == "__main__":
     unittest.main()

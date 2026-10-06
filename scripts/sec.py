@@ -12,6 +12,7 @@ import urllib.error
 import urllib.request
 import uuid
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 
 from business import FILING_ACCESSION, FILING_DATE, FILING_URL, extract_business_facts
@@ -23,6 +24,7 @@ TAG_MAP = {
     "operating_income": ("OperatingIncomeLoss",),
     "net_income": ("NetIncomeLoss", "ProfitLoss"),
     "operating_cash_flow": ("NetCashProvidedByUsedInOperatingActivities",),
+    "capex": ("PaymentsToAcquirePropertyPlantAndEquipment",),
 }
 POINT_TAGS = {
     "cash": ("CashAndCashEquivalentsAtCarryingValue",),
@@ -185,7 +187,7 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None):
         by_end = {}
         for entry, tag in sorted(candidates, key=lambda item: (item[0]["filed"], item[0].get("accn", "")), reverse=True):
             by_end.setdefault(entry["end"], (entry, tag))
-        for end in sorted(by_end, reverse=True)[:3]:
+        for end in sorted(by_end, reverse=True)[:4]:
             entry, tag = by_end[end]
             append_metric(f"{metric_name}_fy{end[:4]}", "USD", entry, tag)
         if not by_end:
@@ -195,6 +197,65 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None):
         candidates = [(entry, tag) for tag in tags if (entry := _point_fact(_tag_entries(data, tag, "USD"), as_of))]
         entry, tag = max(candidates, key=lambda item: (item[0]["end"], item[0]["filed"]), default=(None, None))
         append_metric(metric_name, "USD", entry, tag)
+
+    annual_metrics = {m["metric_id"]: m for m in metrics if m["status"] == "ok"}
+    liabilities, equity = annual_metrics.get("liabilities"), annual_metrics.get("stockholders_equity")
+    if liabilities and equity and liabilities["period_end"] == equity["period_end"] and equity["value"] > 0:
+        metrics.append({"metric_id": "liabilities_to_equity", "value": float(
+            Decimal(str(liabilities["value"])) / Decimal(str(equity["value"])) * 100),
+                        "status": "ok", "unit": "%", "approximate": False,
+                        "period_end": liabilities["period_end"],
+                        "source_ids": list(dict.fromkeys(liabilities["source_ids"] + equity["source_ids"]))})
+    else:
+        metrics.append({"metric_id": "liabilities_to_equity", "value": None,
+                        "status": "unavailable", "unit": "%", "approximate": False,
+                        "reason": "동일 기준일 총부채·양수 자기자본 필요"})
+    for year in sorted({key[-4:] for key in annual_metrics if key.startswith("operating_income_fy")}):
+        income, revenue = annual_metrics[f"operating_income_fy{year}"], annual_metrics.get(f"revenue_fy{year}")
+        if revenue and income["period_start"] == revenue["period_start"] and income["period_end"] == revenue["period_end"]:
+            result = {"metric_id": f"operating_margin_fy{year}", "unit": "%", "approximate": False}
+            if revenue["value"] > 0:
+                result.update(value=float(Decimal(str(income["value"])) / Decimal(str(revenue["value"])) * 100),
+                              status="ok", period_start=income["period_start"], period_end=income["period_end"],
+                              source_ids=list(dict.fromkeys(income["source_ids"] + revenue["source_ids"])))
+            else:
+                result.update(value=None, status="unavailable", reason="매출 0 이하로 영업이익률 계산 불가")
+            metrics.append(result)
+    for year in sorted({key[-4:] for key in annual_metrics if key.startswith("operating_cash_flow_fy")}):
+        cash_flow, capex = annual_metrics[f"operating_cash_flow_fy{year}"], annual_metrics.get(f"capex_fy{year}")
+        if capex and cash_flow["period_start"] == capex["period_start"] and cash_flow["period_end"] == capex["period_end"]:
+            result = {"metric_id": f"free_cash_flow_fy{year}", "unit": "USD", "approximate": False}
+            if capex["value"] >= 0:
+                result.update(value=float(Decimal(str(cash_flow["value"])) - Decimal(str(capex["value"]))),
+                              status="ok", period_start=cash_flow["period_start"], period_end=cash_flow["period_end"],
+                              source_ids=list(dict.fromkeys(cash_flow["source_ids"] + capex["source_ids"])))
+            else:
+                result.update(value=None, status="unavailable", reason="설비투자 지출 부호 확인 필요")
+            metrics.append(result)
+
+    annual_revenue = {int(m["metric_id"][-4:]): m for m in metrics
+                      if m["metric_id"].startswith("revenue_fy") and m["status"] == "ok"}
+    for year in sorted(annual_revenue):
+        current, prior = annual_revenue[year], annual_revenue.get(year - 1)
+        if prior and prior["value"] > 0 and current["value"] > 0:
+            value = float((Decimal(str(current["value"])) / Decimal(str(prior["value"])) - 1) * 100)
+            metrics.append({"metric_id": f"revenue_growth_fy{year}", "value": value,
+                            "status": "ok", "unit": "%", "approximate": False,
+                            "period_start": current["period_start"], "period_end": current["period_end"],
+                            "source_ids": list(dict.fromkeys(current["source_ids"] + prior["source_ids"]))})
+    newest = max(annual_revenue, default=None)
+    base = annual_revenue.get(newest - 3) if newest else None
+    if base and all(year in annual_revenue for year in range(newest - 3, newest + 1)) and base["value"] > 0 and annual_revenue[newest]["value"] > 0:
+        current = annual_revenue[newest]
+        value = float(((Decimal(str(current["value"])) / Decimal(str(base["value"]))) ** (Decimal(1) / Decimal(3)) - 1) * 100)
+        metrics.append({"metric_id": "revenue_cagr_3y", "value": value,
+                        "status": "ok", "unit": "%", "approximate": False,
+                        "period_start": base["period_start"], "period_end": current["period_end"],
+                        "source_ids": list(dict.fromkeys(current["source_ids"] + base["source_ids"]))})
+    else:
+        metrics.append({"metric_id": "revenue_cagr_3y", "value": None,
+                        "status": "unavailable", "unit": "%", "approximate": False,
+                        "reason": "연속 4개 회계연도 매출과 양수 시작·종료 값 필요"})
 
     eps_entries = _tag_entries(data, "EarningsPerShareDiluted", "USD/shares")
     eps_quarters = _four_quarters(eps_entries, as_of)

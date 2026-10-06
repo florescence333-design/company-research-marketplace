@@ -40,6 +40,63 @@ class SecSelectionTests(unittest.TestCase):
         self.assertEqual(quarterly_eps_ttm(entries, self.as_of), -1.0)
         self.assertIsNone(quarterly_eps_ttm(entries[:3], self.as_of))
 
+    def test_three_growth_intervals_require_four_annual_revenue_values(self):
+        annual = [fact(value, f"{year}-01-01", f"{year}-12-31", f"{year + 1}-03-01")
+                  for year, value in ((2022, 125), (2023, 150), (2024, 180), (2025, 216))]
+        data = {"cik": 1819994, "entityName": "Rocket Lab USA, Inc.", "facts": {"us-gaap": {
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": annual}}
+        }}}
+        bundle = build_sec_bundle(data, b"four years", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        metrics = {item["metric_id"]: item for item in bundle["metrics"]["metrics"]}
+        self.assertIn("revenue_fy2022", metrics)
+        self.assertEqual(metrics["revenue_fy2022"]["value"], 125)
+        for year in (2023, 2024, 2025):
+            self.assertAlmostEqual(metrics[f"revenue_growth_fy{year}"]["value"], 20.0)
+        self.assertAlmostEqual(metrics["revenue_cagr_3y"]["value"], 20.0)
+
+    def test_operating_margin_keeps_loss_sign_and_rejects_zero_revenue(self):
+        income = fact(-40, "2025-01-01", "2025-12-31", "2026-03-01")
+        revenue = fact(200, "2025-01-01", "2025-12-31", "2026-03-01")
+        data = {"cik": 1819994, "entityName": "Rocket Lab USA, Inc.", "facts": {"us-gaap": {
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [revenue]}},
+            "OperatingIncomeLoss": {"units": {"USD": [income]}},
+        }}}
+        bundle = build_sec_bundle(data, b"margin", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        metrics = {item["metric_id"]: item for item in bundle["metrics"]["metrics"]}
+        self.assertIn("operating_margin_fy2025", metrics)
+        self.assertEqual(metrics["operating_margin_fy2025"]["value"], -20.0)
+        revenue["val"] = 0
+        bundle = build_sec_bundle(data, b"zero revenue", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        metrics = {item["metric_id"]: item for item in bundle["metrics"]["metrics"]}
+        self.assertEqual(metrics["operating_margin_fy2025"]["status"], "unavailable")
+
+    def test_capex_reduces_free_cash_flow_even_when_ocf_is_negative(self):
+        data = {"cik": 1819994, "entityName": "Rocket Lab USA, Inc.", "facts": {"us-gaap": {
+            "NetCashProvidedByUsedInOperatingActivities": {"units": {"USD": [fact(-30, "2025-01-01", "2025-12-31", "2026-03-01")]}},
+            "PaymentsToAcquirePropertyPlantAndEquipment": {"units": {"USD": [fact(10, "2025-01-01", "2025-12-31", "2026-03-01")]}},
+        }}}
+        bundle = build_sec_bundle(data, b"cash flow", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        metrics = {item["metric_id"]: item for item in bundle["metrics"]["metrics"]}
+        self.assertIn("capex_fy2025", metrics)
+        self.assertEqual(metrics["capex_fy2025"]["value"], 10)
+        self.assertEqual(metrics["free_cash_flow_fy2025"]["value"], -40)
+
+    def test_liabilities_ratio_requires_positive_equity_same_date(self):
+        liabilities = {"val": 80, "end": "2026-06-30", "filed": "2026-08-01", "form": "10-Q", "accn": "0001819994-26-000001"}
+        equity = {"val": 40, "end": "2026-06-30", "filed": "2026-08-01", "form": "10-Q", "accn": "0001819994-26-000001"}
+        data = {"cik": 1819994, "entityName": "Rocket Lab USA, Inc.", "facts": {"us-gaap": {
+            "Liabilities": {"units": {"USD": [liabilities]}},
+            "StockholdersEquity": {"units": {"USD": [equity]}},
+        }}}
+        bundle = build_sec_bundle(data, b"balance", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        metrics = {item["metric_id"]: item for item in bundle["metrics"]["metrics"]}
+        self.assertIn("liabilities_to_equity", metrics)
+        self.assertEqual(metrics["liabilities_to_equity"]["value"], 200.0)
+        equity["val"] = 0
+        bundle = build_sec_bundle(data, b"zero equity", "gpt", datetime(2026, 10, 6, tzinfo=timezone.utc))
+        metrics = {item["metric_id"]: item for item in bundle["metrics"]["metrics"]}
+        self.assertEqual(metrics["liabilities_to_equity"]["status"], "unavailable")
+
     def test_bundle_has_real_source_and_fixed_deferred_verdict(self):
         data = {"cik": 1819994, "entityName": "Rocket Lab USA, Inc.", "facts": {"us-gaap": {
             "RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": [fact(515000000, "2025-01-01", "2025-12-31", "2026-03-01")]}}

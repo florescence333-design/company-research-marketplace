@@ -45,6 +45,10 @@ def build_report_items(bundle):
         fact = facts.get(fact_id)
         return f"{fact['value']:,.0f}{suffix}" if fact else "확인 불가"
 
+    def percentage(metric_id):
+        metric = metrics.get(metric_id)
+        return f"{metric['value']:.1f}%" if metric and metric["status"] == "ok" else "확인 불가"
+
     def backlog_growth():
         current, prior = facts.get("backlog_fy2025"), facts.get("backlog_fy2024")
         if not current or not prior or prior["value"] <= 0:
@@ -56,7 +60,10 @@ def build_report_items(bundle):
     rev_prior = rev_ids[1] if len(rev_ids) > 1 else None
     year = rev_current[-4:] if rev_current else "최근"
     add(1, f"{meta.get('company_name', 'RKLB')} · 티커 RKLB · CIK {meta['cik']}. SEC Company Facts와 2025년 10-K에서 확인한 내용만 담은 부분 분석이다.", [rev_current] if rev_current else [])
-    add(2, f"{year}년 매출 {amount(rev_current)}. 직전 연도 대비 {growth(rev_current, rev_prior)}. 산업 전체 성장률·TAM과 메가트렌드 적합성은 자료 확인 대기.", [x for x in (rev_current, rev_prior) if x])
+    growth_ids = sorted(key for key in metrics if key.startswith("revenue_growth_fy") and metrics[key]["status"] == "ok")
+    growth_history = ", ".join(f"{key[-4:]}년 {percentage(key)}" for key in growth_ids)
+    cagr_text = f" 3년 CAGR {percentage('revenue_cagr_3y')}." if metrics.get("revenue_cagr_3y", {}).get("status") == "ok" else ""
+    add(2, f"{year}년 매출 {amount(rev_current)}. 연도별 매출 성장률: {growth_history or '확인 불가'}.{cagr_text} 산업 전체 성장률·TAM과 메가트렌드 적합성은 자료 확인 대기.", [x for x in (rev_current, rev_prior, *growth_ids, "revenue_cagr_3y") if x])
     add(3, "규제·경쟁사·Porter 5 Forces를 판단할 검증 자료 확인 대기.")
     segment_facts = [f for f in ("launch_revenue_fy2025", "space_revenue_fy2025") if f in facts]
     segment_body = (f"2025년 Launch Services 매출 {fact_amount('launch_revenue_fy2025', ' USD')}, "
@@ -84,15 +91,15 @@ def build_report_items(bundle):
     employee_body = (f"2025년 말 정규직 직원은 {fact_amount('employees_min_fy2025')}명 초과. "
                      "인재 유지·조직문화 평가는 자료 확인 대기.") if employee_fact else "창업자·인재·조직문화의 검증 자료 확인 대기."
     add(11, employee_body, fact_ids=employee_fact)
-    financial_ids = [key for key in sorted(metrics) if key.startswith(("revenue_fy", "operating_income_fy", "net_income_fy", "operating_cash_flow_fy"))] + ["cash", "assets", "liabilities", "stockholders_equity", "eps_ttm"]
+    financial_ids = [key for key in sorted(metrics) if key.startswith(("revenue_fy", "revenue_growth_fy", "operating_income_fy", "operating_margin_fy", "net_income_fy", "operating_cash_flow_fy", "capex_fy", "free_cash_flow_fy"))] + ["revenue_cagr_3y", "cash", "assets", "liabilities", "stockholders_equity", "liabilities_to_equity", "eps_ttm"]
     financial_lines = []
     for metric_id in financial_ids:
         metric = metrics.get(metric_id)
         if metric and metric["status"] == "ok":
-            value = f"{metric['value']:,.2f}" if metric_id == "eps_ttm" else f"{metric['value']:,.0f}"
+            value = f"{metric['value']:,.2f}" if metric_id == "eps_ttm" else f"{metric['value']:,.1f}" if metric["unit"] == "%" else f"{metric['value']:,.0f}"
             suffix = " (근사)" if metric["approximate"] else ""
             financial_lines.append(f"- {metric_id}: {value} {metric['unit']}{suffix}; 기간 종료 {metric['period_end']}")
-    add(12, "SEC 공시 태그에서 검증한 수치:\n" + "\n".join(financial_lines) + "\n수익성·회계 품질 종합 평가는 아직 수행하지 않았다.", financial_ids)
+    add(12, "SEC 공시 태그와 그 값에서 코드로 계산한 지표:\n" + "\n".join(financial_lines) + "\nCapEx는 지출액을 양수로 표시하며 FCF는 영업현금흐름에서 CapEx를 뺀 값이다. 부채비율의 분자는 총부채이며 총차입금과 다르다. 회계 품질 종합 평가는 수행하지 않았다.", financial_ids)
     ocf_current = f"operating_cash_flow_fy{year}"
     add(13, f"{year}년 영업현금흐름은 {amount(ocf_current)}. 현금 소진 지속성은 별도 기간·자금조달·약정 확인이 필요하며 강제 회피 판정은 수행하지 않는다.", [ocf_current])
     add(14, "주가·기업가치 입력과 역DCF 세부 규칙이 없어 밸류에이션 계산·가격 판정을 보류한다.")
