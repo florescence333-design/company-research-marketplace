@@ -11,15 +11,15 @@ test('static dashboard and RKLB detail show their actual data status', () => {
   const company = readFileSync(join(root, 'dist/company/RKLB/index.html'), 'utf8');
   assert.match(index, /RKLB/);
   assert.match(company, /판정 보류 \(v0\.1\)/);
-  if (existsSync(join(root, 'data/companies/RKLB/gpt/meta.json'))) {
+  const engineRoot = join(root, 'data/companies/RKLB/gpt');
+  const pointerPath = join(engineRoot, 'current.json');
+  const pointer = existsSync(pointerPath) ? JSON.parse(readFileSync(pointerPath, 'utf8')) : null;
+  const versionRoot = pointer ? join(engineRoot, 'versions', pointer.version_id || pointer.run_id) : engineRoot;
+  if (existsSync(join(versionRoot, 'meta.json'))) {
     assert.match(company, /SEC Company Facts/);
     assert.doesNotMatch(company, /class="badge sample">샘플 데이터/);
-    if (existsSync(join(root, 'data/companies/RKLB/gpt/report-items.json'))) assert.match(company, /S16 최종 결론/);
-    const pointerPath = join(root, 'data/companies/RKLB/gpt/current.json');
-    if (existsSync(pointerPath)) {
-      const pointer = JSON.parse(readFileSync(pointerPath, 'utf8'));
-      assert.ok(company.includes(pointer.run_id), 'built page must contain selected published run');
-    }
+    if (existsSync(join(versionRoot, 'report-items.json'))) assert.match(company, /S16 최종 결론/);
+    if (pointer) assert.ok(company.includes(pointer.run_id), 'built page must contain selected published run');
   } else {
     assert.match(company, /샘플 데이터/);
   }

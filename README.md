@@ -1,0 +1,67 @@
+# Company Research Plugin — Windows 설치·실행 안내
+
+미국 기업 티커 `RKLB`의 SEC 공시 수치를 수집해 16개 섹션의 **부분 보고서**와 로컬 웹 화면을 만든다. 투자 판정은 현재 **`판정 보류 (v0.1)`**로 고정되어 있다. 산업·고객·경쟁력 등 자료가 없는 섹션은 `자료 확인 대기`로 표시한다. 실제 결과와 합성 샘플을 혼동하지 않는다.
+
+## 조교 PC에서 필요한 프로그램
+
+| 프로그램 | 확인한 버전 | 설치·확인 방법 (PowerShell) | 예상 시간 |
+| --- | --- | --- | --- |
+| Git for Windows | 2.55.0 | `winget install --id Git.Git -e`; `git --version` | 약 3~10분 |
+| uv와 Python | uv 관리 Python 3.14.6 | `winget install --id astral-sh.uv -e`; `uv venv --python 3.14 .venv` | 약 2~8분 |
+| Node.js / npm | 24.19.0 / 11.17.0 | `winget install --id OpenJS.NodeJS.LTS -e`; `node --version`, `npm.cmd --version` | 약 3~10분 |
+| Claude Code | 2.1.199 | `npm.cmd install -g @anthropic-ai/claude-code`; `claude --version`; 첫 사용 시 `claude`에서 로그인 | 약 3~10분 + 로그인 |
+
+설치 뒤 PowerShell을 새로 열어 PATH를 갱신한다. Git Bash가 필요한 Claude Code 환경에서는 Git for Windows가 먼저 설치되어 있어야 한다. 설치 방식은 [uv 공식 문서](https://docs.astral.sh/uv/getting-started/installation/)와 [Claude Code 공식 문서](https://docs.anthropic.com/en/docs/claude-code/getting-started)를 참고한다. 이 저장소에서 테스트한 조합은 위 버전이며, 다른 버전은 아직 검증하지 않았다.
+
+## 의존성 설치와 키 없는 확인 — 약 3~6분
+
+공개 GitHub 주소는 계정 연결 후 여기에 추가한다. 그 전에는 전달받은 프로젝트 폴더의 루트에서 시작한다.
+
+```powershell
+cd '프로젝트 폴더 경로'
+uv venv --python 3.14 .venv
+uv pip install --python .venv\Scripts\python.exe -r requirements-dev.txt
+npm.cmd ci --prefix site
+.venv\Scripts\python.exe -m unittest discover -s tests -v
+.venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --sample
+```
+
+마지막 명령은 **합성 샘플**을 `runs/RKLB/gpt/`에 만들고 경로를 출력한다. SEC 자료나 API 키가 필요 없다. `sample=true`이며 실제 투자 분석이 아니다.
+
+## 실제 RKLB 실행과 로컬 화면 — 첫 실행 약 2~5분
+
+SEC는 연락 가능한 이름과 이메일을 넣은 User-Agent를 요구한다. 아래 입력값은 채팅·저장소·문서에 적지 않는다. `Read-Host`에 본인의 연락처를 입력한다. Twelve Data 키는 이 경로에 필요하지 않다.
+
+```powershell
+$ua = Read-Host 'SEC User-Agent (이름과 연락처 이메일)'
+[Environment]::SetEnvironmentVariable('SEC_USER_AGENT', $ua, 'User')
+$env:SEC_USER_AGENT = $ua
+Remove-Variable ua
+.venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --new
+npm.cmd run dev --prefix site -- --host 127.0.0.1 --port 4321
+```
+
+명령이 성공하면 `http://127.0.0.1:4321/company/RKLB/`에서 결과를 본다. 마지막 개발 서버 명령은 실행 상태로 남으므로 확인 후 `Ctrl+C`로 종료한다. 실제 실행은 SEC 수집 → 원본 재계산 → 16섹션 부분 보고서 → Mermaid 매출 도식 → 로컬 사이트 빌드·테스트까지 자동으로 연결한다. `--new`를 빼면 24시간 이내 같은 조건의 미완료 실행 1개를 재사용한다. 자세한 검증·재게시 방법은 [배포 안내](docs/DEPLOYMENT.md)에 있다.
+
+## Claude Code 플러그인 설치
+
+공개 저장소가 GitHub에 연결되면 Claude Code를 실행하고 아래 명령을 입력한다. `<소유자>/<저장소>`는 실제 공개 저장소 주소로 바꾼다. 이 원격 설치 경로는 계정 연결 전이므로 아직 실기 검증되지 않았다. 현재 `claude plugin validate --strict .` 형식 검사는 통과했다.
+
+```text
+/plugin marketplace add <소유자>/<저장소>
+/plugin install company-analysis@company-research-marketplace
+/company RKLB
+```
+
+공통 스크립트는 Codex에서 `--engine gpt`, Claude Code에서 `--engine claude`를 사용한다. Claude Code가 로그인되지 않은 PC에서는 실제 `/company` 호출이 시작되지 않는다. 설치와 로그인 뒤에는 `/company-publish RKLB`로 기존 실행의 로컬 재검증·게시도 할 수 있다. 로컬 빌드 성공을 Cloudflare 배포 성공으로 해석하지 않는다.
+
+## 현재 범위
+
+| 완성된 것 | 미완성인 것 |
+| --- | --- |
+| 16개 Master Template 섹션 ID·제목, v1 초안 JSON Schema | 투자 프레임워크 v2 입력 |
+| RKLB SEC 수치·EPS 근사·출처·원본 해시 검증 | 다른 기업·비12월 결산 검증, 공시 본문 대조 |
+| 16섹션 부분 보고서, 매출 Mermaid 도식, 로컬 사이트와 Pages 인증 검사 | 산업·고객·경쟁력 등 전체 AI 분석, 주가/배당/실적 일정 |
+| 실행 재사용, 로컬 자동 게시·빌드 실패 복구 | 판정 엔진, 원격 GitHub/Cloudflare 게시·인증 검증 |
+
+구체적인 제한과 재확인 항목은 [알려진 문제](docs/KNOWN_ISSUES.md)에 있다. 비밀 값과 실제 실행 데이터는 Git에서 제외된다.

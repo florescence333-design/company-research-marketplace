@@ -28,3 +28,6 @@ dist/
 .astro/
 .wrangler/
 site/public/build-info.json
+
+# Separate private-site checkout prepared for deployment
+deploy/

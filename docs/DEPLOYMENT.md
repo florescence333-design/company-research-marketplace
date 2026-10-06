@@ -35,6 +35,12 @@ Cloudflare Pages의 운영과 미리보기 환경에 다음 비밀 설정을 각
 
 `build-info.json`은 공개되며 `commit_sha`(사이트 저장소 커밋 해시)와 `built_at`(UTC 빌드 시각)만 담는다. Cloudflare 빌드에서는 `CF_PAGES_COMMIT_SHA`를 사용한다. 두 필드 외 값이 들어가거나 기대 커밋과 다르면 배포 성공으로 기록하지 않는다. 보호된 기업 페이지가 비밀번호 없이는 열리지 않고 정상 로그인 후에는 열리는지도 별도 확인한다.
 
+## 독립 비공개 사이트 저장소 준비
+
+루트의 `scripts/export_site.py`는 Git이 추적하는 `site/` 코드와 로컬 게시 검증을 통과한 RKLB 선택 버전만 `deploy/site-repo/`에 복사한다. `.env`·`.dev.vars`·원본 SEC 캐시·다른 로컬 실행은 복사하지 않는다. `deploy/`는 루트 `.gitignore`에 포함되어 공개 플러그인 저장소에 들어가지 않는다. 이 PC의 `deploy/site-repo/`는 독립 Git 저장소로 초기화해 `main`·`dev` 로컬 브랜치를 준비했고, `npm ci`, `npm run build`, `npm test`가 통과했다. 공개 `build-info.json`은 독립 사이트 저장소 HEAD와 일치했다.
+
+계정 연결 후에는 이 독립 저장소를 **비공개** GitHub 저장소에 연결한다. Cloudflare Pages의 운영 브랜치를 `main`, 개발 미리보기 브랜치를 `dev`로 두고 양쪽에 동일한 인증 비밀을 설정한다. `dev` 미리보기의 별칭·고유 주소와 운영 주소에서 보호 페이지·공개 빌드 정보 경로를 각각 검사한다. 원격에서 확인하기 전에는 배포 성공으로 기록하지 않는다.
+
 현재 로컬 Pages Functions 검증은 다음 명령으로 실행했다. `.dev.vars`는 로컬 테스트용 무작위 값이며 `.gitignore`에 포함된다.
 
 ```powershell

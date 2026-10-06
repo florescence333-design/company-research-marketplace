@@ -99,7 +99,8 @@ const metricDisplay = (version, id) => {
         const sequence = ++diagramSequence;
         const { svg } = await mermaid.render(`revenue-${sequence}`, source);
         if (sequence === diagramSequence) target.innerHTML = svg;
-      } catch {
+      } catch (error) {
+        console.error('Mermaid render error', error);
         target.textContent = '도식 렌더링 실패 · Mermaid 원문을 확인하세요.';
       }
     }
