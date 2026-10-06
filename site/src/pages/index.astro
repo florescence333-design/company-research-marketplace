@@ -1,5 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { loadCompany } from '../lib/data.mjs';
+
+const versions = loadCompany('RKLB');
+const current = versions.gpt || versions.claude;
+const isSample = current.meta.sample;
 ---
 <Layout title="Company Research · 기업 목록">
   <div class="shell">
@@ -25,11 +30,11 @@ import Layout from '../layouts/Layout.astro';
         <a class="company panel" href="/company/RKLB/">
           <span class="symbol">R</span>
           <span class="company-name"><strong>Rocket Lab</strong><small>RKLB · 우주·발사 서비스</small></span>
-          <span class="badge sample">샘플 데이터</span>
+          <span class={isSample ? 'badge sample' : 'badge'}>{isSample ? '샘플 데이터' : 'SEC 공시 기반 초안'}</span>
           <span class="decision">판정 보류 (v0.1)</span>
           <span class="arrow">↗</span>
         </a>
-        <p class="footnote">샘플 화면에는 실제 재무 수치나 투자 결론이 포함되지 않습니다.</p>
+        <p class="footnote">{isSample ? '샘플 화면에는 실제 재무 수치나 투자 결론이 포함되지 않습니다.' : '실제 SEC 공시 수치로 만든 부분 보고서입니다. AI 평가는 아직 실행되지 않았고 투자 판정은 보류입니다.'}</p>
       </div>
     </main>
   </div>

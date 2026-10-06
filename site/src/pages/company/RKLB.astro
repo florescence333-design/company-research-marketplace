@@ -39,13 +39,14 @@ const metricDisplay = (version, id) => {
             <p class="muted subtitle">기업 공시·재무 상태·분석 근거를 한 화면에서 확인합니다.</p>
           </div>
           <div class="engine-switch" role="group" aria-label="분석 엔진">
-            {Object.keys(versions).map(engine => <button type="button" class={engine === initialEngine ? 'active' : ''} data-engine={engine}>{engine === 'gpt' ? 'GPT판' : 'Claude판'}</button>)}
+            {Object.keys(versions).map(engine => <button type="button" class={engine === initialEngine ? 'active' : ''} data-engine={engine}>{engine === 'gpt' ? 'GPT판' : 'Claude판'}{versions[engine].meta.model ? '' : ' 초안'}</button>)}
           </div>
         </div>
 
         <div class="status-line">
           {isSample && <span class="badge sample">샘플 데이터</span>}
           <span class="badge">US-GAAP 범위</span>
+          <span class="badge" id="analysis-mode">{current.meta.model ? 'AI 분석 포함' : '공시·코드 초안 · AI 평가 미실행'}</span>
           <span class="muted">분석 기준: <span id="as-of">{current.meta.analysis_as_of || '실제 데이터 수집 전'}</span></span>
         </div>
 
@@ -179,6 +180,7 @@ const metricDisplay = (version, id) => {
       const version = versions[button.dataset.engine];
       document.querySelectorAll('[data-engine]').forEach(item => item.classList.toggle('active', item === button));
       document.querySelector('#as-of').textContent = version.meta.analysis_as_of || '실제 데이터 수집 전';
+      document.querySelector('#analysis-mode').textContent = version.meta.model ? 'AI 분석 포함' : '공시·코드 초안 · AI 평가 미실행';
       document.querySelector('#verdict-reason').textContent = version.decision.reason;
       document.querySelector('#report-text').textContent = version.report || '이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.';
       renderReportSections(version.reportItems);

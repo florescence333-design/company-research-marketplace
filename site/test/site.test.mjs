@@ -16,8 +16,11 @@ test('static dashboard and RKLB detail show their actual data status', () => {
   const pointer = existsSync(pointerPath) ? JSON.parse(readFileSync(pointerPath, 'utf8')) : null;
   const versionRoot = pointer ? join(engineRoot, 'versions', pointer.version_id || pointer.run_id) : engineRoot;
   if (existsSync(join(versionRoot, 'meta.json'))) {
+    assert.doesNotMatch(index, /class="badge sample">샘플 데이터/);
+    assert.match(index, /SEC 공시 기반 초안/);
     assert.match(company, /SEC Company Facts/);
     assert.doesNotMatch(company, /class="badge sample">샘플 데이터/);
+    assert.match(company, /공시·코드 초안 · AI 평가 미실행/);
     if (existsSync(join(versionRoot, 'report-items.json'))) {
       assert.match(company, /S16 최종 결론/);
       assert.equal((company.match(/class="report-section"/g) || []).length, 16, 'each Master Template section has a readable report block');
