@@ -1,0 +1,29 @@
+# Secrets and local credentials
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Local Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.uv-cache/
+
+# Private analysis inputs, outputs, and execution notes
+runs/
+data/
+.superpowers/
+
+# Site build artifacts
+node_modules/
+dist/
+.astro/
+.wrangler/
