@@ -700,3 +700,8 @@ Twelve Data·Astro·플러그인 배포 형식은 위의 v1 기본값으로 시�
 1. SEC 2025년 10-K 본문에서 수주잔고, 사업부 매출, 누적 발사·배치 실적, 직원 수, Neutron 계획 탑재량을 문구가 확인된 경우에만 구조화했다. `extracted-facts.json`과 출처 위치·원본 해시를 v1 초안 계약에 추가했다.
 2. 16개 섹션의 관련 부분 보고서에 사실 ID와 출처를 연결했다. 누적 실적을 단일 연도 실적으로 바꾸지 않고, 개발 계획을 실현 성과로 평가하지 않으며 최종 판정은 계속 `판정 보류 (v0.1)`다.
 3. 새 RKLB 실행에서 SEC 두 원본의 재계산, 보고서 16섹션, 사이트 빌드·테스트를 확인했다. 공시 전체 해석과 투자 평가는 여전히 미완료다.
+
+### 2026-10-06 — Claude Code 로컬 마켓플레이스 설치 확인
+
+1. `claude plugin marketplace add ./ --scope local`로 현재 프로젝트 마켓플레이스를 등록하고, `claude plugin install company-analysis@company-research-marketplace --scope local`로 플러그인을 설치했다. `claude plugin list`에서 활성화 상태를 확인했다.
+2. 이 검증은 로컬 경로 설치 확인이다. 공개 GitHub 저장소의 `/plugin marketplace add`와 로그인 후 실제 AI 분석 호출은 각각 원격 계정·CLI 로그인 뒤 확인한다. 로컬 `.claude/` 설정은 Git에서 제외했다.

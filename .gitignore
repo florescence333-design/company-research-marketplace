@@ -21,6 +21,7 @@ __pycache__/
 runs/
 data/
 .superpowers/
+.claude/
 
 # Site build artifacts
 node_modules/

@@ -5,7 +5,7 @@
 | 단계 | 완료한 범위 | 확인 |
 | --- | --- | --- |
 | 1 | Master Template S01~S16 추출, v1 초안 데이터 계약·스키마 | Python 계약 테스트 통과 |
-| 2 | Claude/Codex 공통 스킬·마켓플레이스 메타데이터·합성 실행 | `claude plugin validate --strict .`, 합성 묶음 검증 통과 |
+| 2 | Claude/Codex 공통 스킬·마켓플레이스 메타데이터·합성 실행 | `claude plugin validate --strict .`, 로컬 마켓플레이스 추가·플러그인 설치·활성화, 합성 묶음 검증 통과 |
 | 3 | Astro 사이트, 로컬 Pages 비밀번호·30일 서명 쿠키, 공개 빌드 정보 | 사이트 빌드·테스트·로컬 HTTP 인증 검사 통과 |
 | 4 | RKLB SEC Company Facts의 3년 재무·최근 재무상태·EPS 근사, 2025 10-K 사업 사실 일부 | 두 SEC 원본 SHA·출처·재계산 검증 통과 |
 | 5 | 16개 섹션의 부분 보고서와 작성 상태 | 실제 RKLB 보고서 16섹션·사업부 매출·수주잔고 연결, 스키마·사이트 확인 |
