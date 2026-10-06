@@ -1,11 +1,12 @@
 import unittest
+from unittest.mock import patch
 from datetime import datetime, timezone
 
 from test_contract import ROOT
 import sys
 
 sys.path.insert(0, str(ROOT / "scripts"))
-from sec import annual_facts, build_sec_bundle, quarterly_eps_ttm
+from sec import annual_facts, build_sec_bundle, quarterly_eps_ttm, sec_user_agent
 
 
 def fact(value, start, end, filed, form="10-K", accession="0001819994-26-000001"):
@@ -24,6 +25,10 @@ class SecSelectionTests(unittest.TestCase):
             fact(80, "2024-01-01", "2024-12-31", "2025-03-01"),
         ]
         self.assertEqual([item["val"] for item in annual_facts(entries, self.as_of)], [100, 80])
+
+    def test_sec_identity_reads_process_without_logging_it(self):
+        with patch.dict("os.environ", {"SEC_USER_AGENT": "Research Plugin contact@example.com"}):
+            self.assertEqual(sec_user_agent(), "Research Plugin contact@example.com")
 
     def test_ttm_eps_requires_four_independent_quarters(self):
         entries = [

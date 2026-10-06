@@ -32,6 +32,21 @@ POINT_TAGS = {
 }
 
 
+def sec_user_agent():
+    """Read SEC identity from the process or Windows user environment, never log it."""
+    user_agent = os.environ.get("SEC_USER_AGENT", "").strip()
+    if not user_agent and os.name == "nt":
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+                user_agent = str(winreg.QueryValueEx(key, "SEC_USER_AGENT")[0]).strip()
+        except (ImportError, OSError):
+            pass
+    if "@" not in user_agent or len(user_agent) < 12:
+        raise RuntimeError("Set SEC_USER_AGENT in the Windows User environment or current process")
+    return user_agent
+
+
 def _duration(entry):
     try:
         return (date.fromisoformat(entry["end"]) - date.fromisoformat(entry["start"])).days + 1
@@ -238,9 +253,7 @@ def fetch_companyfacts(cache_path):
     if cache_path.exists():
         raw = cache_path.read_bytes()
         return json.loads(raw), raw
-    user_agent = os.environ.get("SEC_USER_AGENT", "").strip()
-    if "@" not in user_agent or len(user_agent) < 12:
-        raise RuntimeError("Set SEC_USER_AGENT locally to an identifying name and contact email")
+    user_agent = sec_user_agent()
     request = urllib.request.Request(FACTS_URL, headers={"User-Agent": user_agent, "Accept-Encoding": "identity"})
     for attempt in range(3):
         try:
@@ -264,9 +277,7 @@ def fetch_10k(cache_path):
     """Fetch the 2025 filing once with the same locally provided SEC identity."""
     if cache_path.exists():
         return cache_path.read_bytes()
-    user_agent = os.environ.get("SEC_USER_AGENT", "").strip()
-    if "@" not in user_agent or len(user_agent) < 12:
-        raise RuntimeError("Set SEC_USER_AGENT locally to an identifying name and contact email")
+    user_agent = sec_user_agent()
     request = urllib.request.Request(FILING_URL, headers={"User-Agent": user_agent, "Accept-Encoding": "identity"})
     time.sleep(1)
     with urllib.request.urlopen(request, timeout=30) as response:

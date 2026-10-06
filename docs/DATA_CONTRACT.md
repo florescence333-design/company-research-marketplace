@@ -61,7 +61,7 @@ $run=Get-ChildItem runs\RKLB\gpt | Sort-Object LastWriteTime -Descending | Selec
 npm.cmd run build --prefix site
 ```
 
-`data/`, `runs/`, `site/data/`는 Git에서 제외한다. SEC_USER_AGENT 값은 코드·출력·문서에 쓰지 않는다. `verify_sec_run.py`는 보관한 Company Facts와 10-K 원본 해시에서 재무 지표·사업 사실·출처를 다시 계산해 대조한다. 전체 10-K/10-Q 감사 의견과 주석 검토, 다른 결산월 기업 검증, AI의 재무 해석은 다음 작업이다.
+`data/`, `runs/`, `site/data/`는 Git에서 제외한다. SEC_USER_AGENT 값은 코드·출력·문서에 쓰지 않는다. 수집기는 프로세스 환경변수에 값이 없으면 Windows 사용자 범위 환경변수에서 직접 읽는다. `verify_sec_run.py`는 보관한 Company Facts와 10-K 원본 해시에서 재무 지표·사업 사실·출처를 다시 계산해 대조한다. 전체 10-K/10-Q 감사 의견과 주석 검토, 다른 결산월 기업 검증, AI의 재무 해석은 다음 작업이다.
 
 ## 6단계 실행 상태와 도식
 
