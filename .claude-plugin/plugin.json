@@ -1,6 +1,6 @@
 {
   "name": "company-analysis",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "US-GAAP company research workflow with a clearly deferred v0.1 investment decision.",
   "author": {"name": "김지원"}
 }
