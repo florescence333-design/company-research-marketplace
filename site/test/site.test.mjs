@@ -13,7 +13,9 @@ test('static dashboard and RKLB detail show their actual data status', () => {
   const company = readFileSync(join(root, 'dist/company/RKLB/index.html'), 'utf8');
   assert.match(index, /RKLB/);
   assert.match(company, /판정 보류 \(v0\.1\)/);
-  const engineRoot = join(root, 'data/companies/RKLB/gpt');
+  const base = join(root, 'data/companies/RKLB');
+  const selectedEngine = ['gpt', 'claude'].find(engine => existsSync(join(base, engine, 'current.json'))) || 'gpt';
+  const engineRoot = join(base, selectedEngine);
   const pointerPath = join(engineRoot, 'current.json');
   const pointer = existsSync(pointerPath) ? JSON.parse(readFileSync(pointerPath, 'utf8')) : null;
   const versionRoot = pointer ? join(engineRoot, 'versions', pointer.version_id || pointer.run_id) : engineRoot;
