@@ -80,7 +80,11 @@ def build_report_items(bundle):
                     f"Space Systems 매출 {fact_amount('space_revenue_fy2025', ' USD')}. "
                     "두 사업부 합계는 총매출과 대조했다. 세부 계약 구조는 자료 확인 대기.") if len(segment_facts) == 2 else "사업부별 매출과 계약 구조는 공시 본문 확인 대기."
     add(4, f"연간 총매출은 {amount(rev_current)}. {segment_body}", [rev_current] if rev_current else [], segment_facts)
-    add(5, "고객군·유지율·LTV/CAC를 확인할 검증 자료 확인 대기.")
+    concentration_ids = [f for f in ("top5_revenue_share_approx_fy2025", "top5_backlog_share_approx_fy2025") if f in facts]
+    concentration_text = (f"2025년 상위 5개 고객은 매출의 약 {fact_amount('top5_revenue_share_approx_fy2025')}%, "
+                          f"연말 상위 5개 수주 고객은 수주잔고의 약 {fact_amount('top5_backlog_share_approx_fy2025')}%를 차지했다. "
+                          "서로 다른 기준의 고객군·기간이며 수주잔고는 매출이 아니다. ") if len(concentration_ids) == 2 else ""
+    add(5, concentration_text + "고객군·유지율·LTV/CAC를 확인할 추가 자료는 확인 대기.", fact_ids=concentration_ids)
     launch_facts = [f for f in ("successful_launches_fy2025", "spacecraft_min_fy2025") if f in facts]
     launch_body = (f"2025년 말 누적 성공 발사 {fact_amount('successful_launches_fy2025')}회, "
                    f"배치 우주선 {fact_amount('spacecraft_min_fy2025')}기 초과. "

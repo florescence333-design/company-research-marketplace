@@ -26,6 +26,15 @@ def extract_business_facts(raw: bytes) -> dict:
             add("backlog_space_fy2025", values[2], "USD", "Item 7 MD&A > Backlog")
             add("backlog_launch_fy2025", values[3], "USD", "Item 7 MD&A > Backlog")
 
+    concentration = re.search(
+        r"For the year ended December 31, 2025, our top five customers accounted for approximately (\d+)% of our revenues and our top five backlog customers accounted for approximately (\d+)% of our backlog in the aggregate as of December 31, 2025",
+        text, re.I)
+    if concentration:
+        add("top5_revenue_share_approx_fy2025", int(concentration[1]), "%",
+            "Item 1A Risk Factors > Customer Concentration")
+        add("top5_backlog_share_approx_fy2025", int(concentration[2]), "%",
+            "Item 1A Risk Factors > Customer Concentration")
+
     employees = re.search(r"As of December 31, 2025, we had over ([\d,]+) full-time permanent employees", text, re.I)
     if employees:
         add("employees_min_fy2025", int(employees[1].replace(",", "")), "people", "Item 1 Business > Human Capital")

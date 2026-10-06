@@ -58,6 +58,19 @@ class ReportTests(unittest.TestCase):
         report["sections"][8]["fact_ids"] = ["unverified-fact"]
         self.assertTrue(validate_report_items(report, self.bundle))
 
+    def test_customer_concentration_is_labeled_approximate_and_sourced(self):
+        self.bundle["extracted-facts"] = {"facts": [
+            {"fact_id": "top5_revenue_share_approx_fy2025", "value": 49, "unit": "%", "source_id": "filing-a"},
+            {"fact_id": "top5_backlog_share_approx_fy2025", "value": 77, "unit": "%", "source_id": "filing-b"},
+        ]}
+        self.bundle["sources"]["sources"].extend([{"source_id": "filing-a"}, {"source_id": "filing-b"}])
+        report = build_report_items(self.bundle)
+        customers = report["sections"][4]
+        self.assertIn("매출의 약 49%", customers["body"])
+        self.assertIn("수주잔고의 약 77%", customers["body"])
+        self.assertEqual(customers["source_ids"], ["filing-a", "filing-b"])
+        self.assertEqual(validate_report_items(report, self.bundle), [])
+
     def test_four_year_revenue_history_is_visible_as_three_growth_intervals_and_cagr(self):
         entries = [{"val": value, "start": f"{year}-01-01", "end": f"{year}-12-31",
                     "filed": f"{year + 1}-03-01", "form": "10-K", "accn": "0001819994-26-000001"}
