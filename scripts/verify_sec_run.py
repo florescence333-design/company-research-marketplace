@@ -61,6 +61,8 @@ def verify_run(folder: Path, raw_path: Path) -> list[str]:
     company = {key: meta[key] for key in ("ticker", "cik", "exchange", "security_type")} if filings else None
     expected = build_sec_bundle(data, raw, meta["engine"], datetime.fromisoformat(meta["analysis_as_of"]),
                                 business_raw, company=company, filings=filings)
+    if meta.get("filing_body_basis") != expected["meta"].get("filing_body_basis"):
+        errors.append("meta.json: 정정 공시 본문 한계 고지 불일치")
     for name in ("metrics", "sources", "extracted-facts"):
         actual = json.loads((folder / f"{name}.json").read_text(encoding="utf-8"))
         if name == "metrics":
@@ -72,8 +74,9 @@ def verify_run(folder: Path, raw_path: Path) -> list[str]:
             actual = [source for source in actual["sources"] if source.get("source_id", "").startswith("sec-")]
             expected_value = expected[name]["sources"]
         else:
-            actual = actual["facts"]
-            expected_value = expected[name]["facts"]
+            fields = ("facts", "missing_categories", "limitations")
+            actual = {key: actual[key] for key in fields if key in actual}
+            expected_value = {key: expected[name][key] for key in fields if key in expected[name]}
         if actual != expected_value:
             errors.append(f"{name}.json: SEC 원본으로 재계산한 값과 불일치")
     return errors

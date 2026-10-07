@@ -9,6 +9,7 @@
     "data_snapshot_id": {"type": "string", "minLength": 1},
     "filing_sha256": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
     "companyfacts_sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "filing_body_basis": {"type": "string", "minLength": 1},
     "sec_filings": {"type": "array", "minItems": 2, "maxItems": 2, "items": {
       "type": "object", "required": ["form", "report_date", "filed", "accession_number", "primary_document", "url", "sha256"],
       "properties": {

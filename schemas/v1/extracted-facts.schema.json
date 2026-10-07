@@ -7,12 +7,15 @@
     "schema_version": {"const": "v1-draft"},
     "run_id": {"type": "string", "minLength": 1},
     "data_snapshot_id": {"type": "string", "minLength": 1},
+    "missing_categories": {"type": "array", "uniqueItems": true, "items": {"enum": ["business", "customer", "one_off", "debt"]}},
+    "limitations": {"type": "array", "items": {"type": "string", "minLength": 1}},
     "facts": {"type": "array", "items": {"type": "object",
       "required": ["fact_id", "value", "unit", "source_id", "location", "verification"],
       "properties": {
         "fact_id": {"type": "string", "minLength": 1},
         "value": {"type": "number"},
         "unit": {"type": "string", "minLength": 1},
+        "category": {"enum": ["business", "customer", "one_off", "debt"]},
         "source_id": {"type": "string", "minLength": 1},
         "location": {"type": "string", "minLength": 1},
         "verification": {"const": "matched_official_filing_text"}

@@ -171,9 +171,11 @@ def validate_report_items(report, bundle):
 
 
 def render_report(report, bundle):
-    lines = ["# RKLB 기업분석 — v0.1 부분 보고서", "",
+    lines = [f"# {bundle['meta']['ticker']} 기업분석 — v0.1 부분 보고서", "",
              f"기준시각: {bundle['meta']['analysis_as_of']} · 데이터 스냅샷: {bundle['meta']['data_snapshot_id']}",
              "이 보고서는 SEC 공시 수치 중심의 초기 결과다. 자료 확인 대기 섹션은 결론으로 간주하지 않는다.", ""]
+    if bundle["meta"].get("filing_body_basis"):
+        lines.extend([f"공시 본문 한계: {bundle['meta']['filing_body_basis']}", ""])
     for section in report["sections"]:
         for item, level in [(section, "##"), *[(sub, "###") for sub in section.get("subsections", [])]]:
             lines.extend([f"{level} {item['section_id']} {item['title']}", "",

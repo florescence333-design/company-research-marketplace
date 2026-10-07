@@ -16,7 +16,8 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from business import FILING_ACCESSION, FILING_DATE, FILING_URL, extract_business_facts
+from business import (FILING_ACCESSION, FILING_DATE, FILING_URL,
+                      extract_business_facts, extract_company_filing_facts)
 
 ROOT = Path(__file__).resolve().parents[1]
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001819994.json"
@@ -613,6 +614,30 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None, *, company=None,
 
     extracted = {"schema_version": "v1-draft", "run_id": run_id,
                  "data_snapshot_id": snapshot_id, "facts": []}
+    if company:
+        amended_numeric = any(re.search(r", 10-[KQ]/A$", source["location"]) for source in sources)
+        if amended_numeric:
+            basis = "수치는 정정본 기준, 본문 추출은 원본 10-K 기준"
+            meta["filing_body_basis"] = basis
+            extracted["limitations"] = [basis]
+        if ticker in ("VRT", "MSFT"):
+            for filing in filings:
+                filing_digest = hashlib.sha256(filing["raw"]).hexdigest()
+                for fact_id, item in extract_company_filing_facts(ticker, filing).items():
+                    source_id = f"sec-{len(sources) + 1:03d}"
+                    sources.append({"source_id": source_id, "url": filing["url"],
+                                    "title": f"{ticker} {filing['report_date']} Form {filing['form']}",
+                                    "accessed_at": timestamp, "accession_number": filing["accession_number"],
+                                    "location": item["location"], "content_sha256": filing_digest,
+                                    "excerpt": item["excerpt"]})
+                    extracted["facts"].append({"fact_id": fact_id, "value": item["value"],
+                                                "unit": item["unit"], "category": item["category"],
+                                                "source_id": source_id, "location": item["location"],
+                                                "verification": "matched_official_filing_text"})
+            covered = {item["category"] for item in extracted["facts"]}
+            extracted["missing_categories"] = [category for category in
+                                               ("business", "customer", "one_off", "debt")
+                                               if category not in covered]
     annual_revenue = next((m for m in metrics if m["metric_id"] == "revenue_fy2025" and m["status"] == "ok"), None)
     valid_filing = annual_revenue and any(s["source_id"] in annual_revenue["source_ids"] and s["accession_number"] == FILING_ACCESSION for s in sources)
     if business_raw and ticker == "RKLB" and as_of >= FILING_DATE and valid_filing:

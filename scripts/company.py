@@ -29,6 +29,11 @@ def file_hash(path: Path) -> str:
 
 def write_run_state(output: Path, no_viz: bool, original: bool) -> None:
     meta = json.loads((output / "meta.json").read_text(encoding="utf-8"))
+    extracted = json.loads((output / "extracted-facts.json").read_text(encoding="utf-8")) if (output / "extracted-facts.json").exists() else {"facts": []}
+    body_reason = ("2025 10-K 일부 사업 사실만 추출; 나머지는 자료 확인 대기" if meta["ticker"] == "RKLB"
+                   else f"확인된 본문 사실 {len(extracted['facts'])}건; 누락 범주: {', '.join(extracted.get('missing_categories', [])) or '없음'}")
+    if meta.get("filing_body_basis"):
+        body_reason += f"; {meta['filing_body_basis']}"
     template_ready = not original and not validate_template(output)
     viz_ready = not no_viz and (output / "diagrams" / "manifest.json").exists()
     steps = [
@@ -37,9 +42,8 @@ def write_run_state(output: Path, no_viz: bool, original: bool) -> None:
          "reason": "커스텀 템플릿 검증 완료" if template_ready else "웹 리서치 기반 커스텀 템플릿 작성 대기"},
         {"step_id": "S1", "state": "completed", "output_sha256": file_hash(output / "sources.json")},
         {"step_id": "S2", "state": "completed", "output_sha256": file_hash(output / "metrics.json")},
-        {"step_id": "S3", "state": "completed" if (output / "extracted-facts.json").exists() and
-         json.loads((output / "extracted-facts.json").read_text(encoding="utf-8"))["facts"] else "pending",
-         "reason": "2025 10-K 일부 사업 사실만 추출; 나머지는 자료 확인 대기"},
+        {"step_id": "S3", "state": "completed" if extracted["facts"] else "pending",
+         "reason": body_reason},
         {"step_id": "S4", "state": "completed", "input_sha256": file_hash(output / "metrics.json"),
          "output_sha256": file_hash(output / "report.md"), "reason": "부분 보고서; 판정 보류 (v0.1)"},
         {"step_id": "S5", "state": "completed" if viz_ready else "pending",
