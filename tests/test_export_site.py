@@ -51,6 +51,16 @@ class ExportSiteTests(unittest.TestCase):
         self.assertFalse((self.target / "data/companies/VRT/gpt/versions/unselected").exists())
         self.assertFalse((self.target / "data/companies/RKLB").exists())
 
+    def test_dev_export_can_include_validated_code_drafts_but_never_samples(self):
+        self.make_selection("AAPL", model=None)
+        self.make_selection("MSFT", model=None)
+        self.make_selection("VRT", model=None)
+        self.make_selection("RKLB", model=None, sample=True)
+        self.assertEqual(export_selected_versions(self.source, self.target), [])
+        copied = export_selected_versions(self.source, self.target, include_drafts=True)
+        self.assertEqual(sorted(Path(path).parts[2] for path in copied), ["AAPL", "MSFT", "VRT"])
+        self.assertFalse((self.target / "data/companies/RKLB").exists())
+
     def test_rejects_unsafe_pointer_and_company_mismatch(self):
         folder, pointer = self.make_selection("VRT")
         pointer.write_text(json.dumps({"run_id": "run-vrt", "version_id": ".."}), encoding="utf-8")

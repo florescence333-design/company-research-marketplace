@@ -31,8 +31,8 @@ def _tree_hashes(folder):
     return result
 
 
-def export_selected_versions(source_companies: Path, destination: Path, display_allowed=False):
-    """Copy only each company's validated, selected AI version to an isolated site."""
+def export_selected_versions(source_companies: Path, destination: Path, display_allowed=False, include_drafts=False):
+    """Copy validated selections; optionally include code drafts for a dev preview."""
     copied = []
     if not source_companies.exists():
         return copied
@@ -62,8 +62,8 @@ def export_selected_versions(source_companies: Path, destination: Path, display_
             if version.is_symlink() or not version.is_dir() or not version.resolve().is_relative_to(source_companies):
                 raise ValueError("선택 버전 경로가 해당 기업 밖이거나 없음")
             meta = _json(version / "meta.json")
-            if meta.get("sample") or meta.get("model") is None:
-                # Drafts and synthetic examples cannot replace a validated AI selection.
+            if meta.get("sample") or (meta.get("model") is None and not include_drafts):
+                # Synthetic examples never export; drafts require an explicit dev-only request.
                 continue
             if meta.get("ticker") != ticker or meta.get("engine") != engine or meta.get("run_id") != pointer.get("run_id"):
                 raise ValueError("선택 포인터와 기업·엔진·실행 메타데이터 불일치")
