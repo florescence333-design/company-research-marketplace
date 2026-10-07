@@ -452,6 +452,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
   :global(.business-diagram small) { display:block; margin-top:13px; color:#86b9aa; }
   :global(.diagram-canvas) { overflow:auto; margin:18px 0; }
   :global(.diagram-canvas svg) { min-width:860px; max-width:none !important; height:auto; }
+  :global(.diagram-canvas svg .node .label p) { color:#1a1a1a !important; }
   :global(.diagram-canvas .edgeLabel) { font-size:14px !important; color:#e2f3e7 !important; }
   :global(.diagram-canvas .edgeLabel rect), :global(.diagram-canvas .labelBkg) { background:#1d3529 !important; fill:#1d3529 !important; }
   :global(.diagram-canvas .edgeLabel p) { color:#e2f3e7 !important; font-size:14px !important; line-height:1.5; margin:0; padding:2px 5px; background:#1d3529; }
