@@ -98,11 +98,22 @@ class PublishTests(unittest.TestCase):
         self.assertEqual(json.loads((self.site / "data/companies/VRT/gpt/current.json").read_text(encoding="utf-8"))["run_id"], "vrt-old")
         self.assertEqual(json.loads((msft_root / "current.json").read_text(encoding="utf-8")), previous)
 
-    def test_real_non_rklb_bundle_stops_before_rklb_sec_recalculation(self):
+    def test_real_non_rklb_bundle_uses_its_own_sec_cache_for_recalculation(self):
+        (self.bundle / "meta.json").write_text(json.dumps({"run_id": "vrt-run", "ticker": "VRT", "engine": "gpt",
+            "analysis_as_of": "2026-10-06T14:00:00+00:00", "data_snapshot_id": "vrt-snap", "sample": False,
+            "sec_filings": []}), encoding="utf-8")
+        with patch("publish.validate_bundle", return_value=[]), patch("publish.verify_resume", return_value={}), \
+             patch("publish.verify_run", return_value=["fixture stop"]) as recalculate:
+            with self.assertRaisesRegex(ValueError, "fixture stop"):
+                check_bundle(self.bundle, "VRT", "gpt")
+            self.assertEqual(recalculate.call_args.args[1], ROOT / "data" / "sec" / "VRT" / "companyfacts.json")
+
+    def test_non_rklb_without_company_specific_sec_manifest_is_rejected(self):
         (self.bundle / "meta.json").write_text(json.dumps({"run_id": "vrt-run", "ticker": "VRT", "engine": "gpt",
             "analysis_as_of": "2026-10-06T14:00:00+00:00", "data_snapshot_id": "vrt-snap", "sample": False}), encoding="utf-8")
-        with patch("publish.validate_bundle", return_value=[]), patch("publish.verify_resume", return_value={}), patch("publish.verify_run") as recalculate:
-            with self.assertRaisesRegex(ValueError, "VRT SEC 원본 재계산은 아직 지원하지 않음"):
+        with patch("publish.validate_bundle", return_value=[]), patch("publish.verify_resume", return_value={}), \
+             patch("publish.verify_run") as recalculate:
+            with self.assertRaisesRegex(ValueError, "기업별 SEC 원본 정보 없음"):
                 check_bundle(self.bundle, "VRT", "gpt")
             recalculate.assert_not_called()
 

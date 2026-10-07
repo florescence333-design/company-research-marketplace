@@ -94,12 +94,11 @@ def check_bundle(folder, expected_ticker=None, expected_engine=None):
         verify_resume(folder, meta["ticker"], meta["engine"])
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         errors.append(f"실행 상태 확인 실패: {exc}")
-    if ticker == "RKLB":
-        errors.extend(verify_run(folder, ROOT / "data" / "sec" / "rklb-companyfacts.json"))
+    if ticker != "RKLB" and "sec_filings" not in meta:
+        errors.append("기업별 SEC 원본 정보 없음")
     else:
-        # The current SEC recalculator still reconstructs RKLB-specific facts.
-        # Never validate another company against RKLB's source; stage 4 replaces this gate.
-        errors.append(f"{ticker} SEC 원본 재계산은 아직 지원하지 않음")
+        raw_path = (ROOT / "data" / "sec" / ticker / "companyfacts.json") if "sec_filings" in meta else (ROOT / "data" / "sec" / "rklb-companyfacts.json")
+        errors.extend(verify_run(folder, raw_path))
     if errors:
         raise ValueError("; ".join(errors))
     validation = {"schema_version": "v1-draft", "run_id": meta["run_id"],

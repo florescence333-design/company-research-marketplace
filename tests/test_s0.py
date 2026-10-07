@@ -62,6 +62,13 @@ class S0Tests(unittest.TestCase):
         ambiguous["filings"]["recent"]["reportDate"] = [""] * 6
         self.assertIn("적합성 확인 실패", assess("RKLB", LISTING, ambiguous).reason)
 
+    def test_three_post_listing_fiscal_years_are_rejected(self):
+        young = submission(forms=["10-K", "10-K", "10-K", "10-Q"],
+                           years=[2025, 2024, 2023, 2026])
+        result = assess("RKLB", LISTING, young)
+        self.assertFalse(result.eligible)
+        self.assertIn("4개 미만", result.reason)
+
     def test_loader_fetches_only_ticker_and_submissions_metadata(self):
         urls = []
         ticker_map = {"fields": ["cik", "name", "ticker", "exchange"],

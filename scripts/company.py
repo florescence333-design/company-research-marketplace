@@ -7,14 +7,14 @@ import re
 import shutil
 import subprocess
 import sys
-import urllib.error
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from report import write_report
 from template_stage import create_template_draft, validate_template
-from sec import build_sec_bundle, fetch_10k, fetch_companyfacts
+from sec import (build_sec_bundle, fetch_companyfacts, fetch_filing, fetch_submissions,
+                 filing_cache_path, select_filings, validate_us_gaap)
 from s0 import load_s0
 from validate_bundle import validate_bundle
 from visualize_run import build_visualization, verify_visualization
@@ -89,16 +89,19 @@ def find_recent_incomplete(ticker: str, engine: str, no_viz: bool, original: boo
     return candidates
 
 
-def write_real_run(output: Path, engine: str) -> None:
+def write_real_run(output: Path, engine: str, eligibility) -> None:
     now = datetime.now(timezone.utc)
-    cache = ROOT / "data" / "sec" / "rklb-companyfacts.json"
-    data, raw = fetch_companyfacts(cache)
-    try:
-        business_raw = fetch_10k(ROOT / "data" / "sec" / "rklb-2025-10k.htm")
-    except (OSError, urllib.error.URLError, TimeoutError, ValueError) as exc:
-        business_raw = None
-        print(f"SEC 10-K 본문 수집 실패: {type(exc).__name__}; 관련 섹션 자료 확인 대기", file=sys.stderr)
-    bundle = build_sec_bundle(data, raw, engine, now, business_raw)
+    ticker = eligibility.ticker
+    cache = ROOT / "data" / "sec" / ticker / "companyfacts.json"
+    data, raw = fetch_companyfacts(cache, int(eligibility.cik), max_age_hours=24)
+    validate_us_gaap(data)  # Must precede submissions selection and all filing-body downloads.
+    submissions = fetch_submissions(int(eligibility.cik))
+    selected = select_filings(submissions, int(eligibility.cik), now.date().isoformat())
+    filings = [{**item, "raw": fetch_filing(filing_cache_path(ROOT, ticker, item), item["url"])}
+               for item in selected]
+    bundle = build_sec_bundle(data, raw, engine, now, company={"ticker": ticker, "cik": eligibility.cik,
+                              "exchange": eligibility.exchange, "security_type": eligibility.security_type},
+                              filings=filings)
     output.mkdir(parents=True, exist_ok=True)
     if any(output.iterdir()):
         raise ValueError(f"Output directory is not empty: {output}")
@@ -137,8 +140,6 @@ def main() -> int:
         eligibility = load_s0(ticker)
         if not eligibility.eligible:
             parser.error(eligibility.reason)
-        if ticker != "RKLB":
-            parser.error(f"{ticker}: S0 통과; SEC 수집기 일반화는 4단계에서 연결")
     if not args.run_id and not args.new and not args.sample and not args.output:
         candidates = find_recent_incomplete(ticker, args.engine, args.no_viz, args.original)
         if len(candidates) > 1:
@@ -177,7 +178,7 @@ def main() -> int:
             path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     else:
         try:
-            write_real_run(output, args.engine)
+            write_real_run(output, args.engine, eligibility)
             write_run_state(output, args.no_viz, args.original)
         except (OSError, ValueError, RuntimeError) as exc:
             parser.error(str(exc))

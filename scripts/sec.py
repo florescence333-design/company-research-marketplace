@@ -1,4 +1,4 @@
-"""Small SEC Company Facts collector for the v0.1 RKLB path.
+"""SEC Company Facts and 10-K/10-Q raw collector.
 
 SEC facts are selected by filing date and period. Missing values remain missing.
 This module does not make investment assessments.
@@ -7,6 +7,7 @@ This module does not make investment assessments.
 import hashlib
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.request
@@ -19,6 +20,7 @@ from business import FILING_ACCESSION, FILING_DATE, FILING_URL, extract_business
 
 ROOT = Path(__file__).resolve().parents[1]
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK0001819994.json"
+SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 TAG_MAP = {
     "revenue": ("RevenueFromContractWithCustomerExcludingAssessedTax", "Revenues", "SalesRevenueNet"),
     "operating_income": ("OperatingIncomeLoss",),
@@ -32,6 +34,89 @@ POINT_TAGS = {
     "liabilities": ("Liabilities",),
     "stockholders_equity": ("StockholdersEquity",),
 }
+
+
+def validate_us_gaap(data):
+    """Fail before downloading filing bodies when core USD facts are not US-GAAP."""
+    facts = data.get("facts") if isinstance(data, dict) else None
+    gaap = facts.get("us-gaap") if isinstance(facts, dict) else None
+    def has_usd(tags):
+        return any(isinstance(gaap.get(tag, {}).get("units", {}).get("USD"), list)
+                   and gaap[tag]["units"]["USD"] for tag in tags)
+    if not isinstance(gaap, dict) or not has_usd(TAG_MAP["revenue"]) or not has_usd(TAG_MAP["net_income"]):
+        raise ValueError("지원 범위 밖: US-GAAP 재무 확인 불가")
+
+
+def select_filings(submissions, cik, as_of):
+    """Select the latest filed original 10-K and 10-Q, never future or foreign forms."""
+    if int(submissions.get("cik", cik)) != int(cik):
+        raise ValueError("SEC submissions CIK 불일치")
+    recent = submissions.get("filings", {}).get("recent", {})
+    fields = ("form", "reportDate", "filingDate", "accessionNumber", "primaryDocument")
+    if not all(isinstance(recent.get(field), (list, tuple)) for field in fields):
+        raise ValueError("SEC 공시 메타데이터 불완전")
+    if len({len(recent[field]) for field in fields}) != 1:
+        raise ValueError("SEC 공시 메타데이터 길이 불일치")
+    selected = []
+    cutoff = date.fromisoformat(as_of)
+    for form in ("10-K", "10-Q"):
+        eligible = []
+        for values in zip(*(recent[field] for field in fields)):
+            if values[0] != form:
+                continue
+            row = dict(zip(fields, values))
+            try:
+                report_date = date.fromisoformat(row["reportDate"])
+                filed_date = date.fromisoformat(row["filingDate"])
+            except (TypeError, ValueError):
+                raise ValueError(f"{form} 공시 날짜 검증 실패") from None
+            if filed_date <= cutoff and report_date <= cutoff:
+                eligible.append(row)
+        if not eligible:
+            raise ValueError(f"기준일 내 {form} 공시 확인 불가")
+        item = max(eligible, key=lambda row: (row["reportDate"], row["filingDate"]))
+        accession = item["accessionNumber"]
+        document = item["primaryDocument"]
+        if not re.fullmatch(r"\d{10}-\d{2}-\d{6}", accession) or not re.fullmatch(r"[A-Za-z0-9._-]+", document):
+            raise ValueError(f"{form} 공시 주소 검증 실패")
+        selected.append({"form": form, "report_date": item["reportDate"], "filed": item["filingDate"],
+                         "accession_number": accession, "primary_document": document,
+                         "url": f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace('-', '')}/{document}"})
+    return selected
+
+
+def filing_cache_path(root, ticker, filing):
+    return root / "data" / "sec" / ticker / "filings" / f"{filing['accession_number'].replace('-', '')}-{filing['primary_document']}"
+
+
+def _download_sec(url):
+    request = urllib.request.Request(url, headers={"User-Agent": sec_user_agent(), "Accept-Encoding": "identity"})
+    for attempt in range(3):
+        try:
+            time.sleep(1)
+            with urllib.request.urlopen(request, timeout=30) as response:
+                return response.read()
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+            if attempt == 2 or isinstance(exc, urllib.error.HTTPError) and exc.code not in (429, 500, 502, 503, 504):
+                raise
+            time.sleep(2 ** attempt)
+    raise RuntimeError("SEC collection failed")
+
+
+def fetch_submissions(cik):
+    return json.loads(_download_sec(SUBMISSIONS_URL.format(cik=int(cik))))
+
+
+def fetch_filing(cache_path, url):
+    if cache_path.exists():
+        raw = cache_path.read_bytes()
+    else:
+        raw = _download_sec(url)
+        if not raw:
+            raise ValueError("빈 SEC 공시 본문")
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_bytes(raw)
+    return raw
 
 
 def sec_user_agent():
@@ -148,34 +233,50 @@ def _point_fact(entries, as_of):
     return max(eligible, key=lambda e: (e["end"], e["filed"], e.get("accn", "")), default=None)
 
 
-def build_sec_bundle(data, raw, engine, now, business_raw=None):
+def build_sec_bundle(data, raw, engine, now, business_raw=None, *, company=None, filings=None):
     """Construct a schema-valid bundle from already downloaded public facts."""
-    if data.get("cik") != 1819994 or "Rocket Lab" not in data.get("entityName", ""):
-        raise ValueError("SEC response is not RKLB / Rocket Lab")
+    if company is None:
+        if data.get("cik") != 1819994 or "Rocket Lab" not in data.get("entityName", ""):
+            raise ValueError("SEC response is not RKLB / Rocket Lab")
+        ticker, cik, exchange, security_type = "RKLB", "0001819994", "NASDAQ", "Common Stock"
+    else:
+        ticker, cik = company["ticker"], company["cik"]
+        if data.get("cik") != int(cik):
+            raise ValueError("SEC Company Facts CIK 불일치")
+        exchange, security_type = company.get("exchange"), company.get("security_type")
+        filings = filings or []
+        if [item["form"] for item in filings] != ["10-K", "10-Q"]:
+            raise ValueError("10-K·10-Q 원본 둘 다 필요")
+        business_raw = filings[0]["raw"]
     if engine not in ("gpt", "claude"):
         raise ValueError("Unknown engine")
     as_of = now.date().isoformat()
     raw_digest = hashlib.sha256(raw).hexdigest()
-    digest = hashlib.sha256(raw + (business_raw or b"")).hexdigest()
+    digest = hashlib.sha256(raw + (b"".join(item["raw"] for item in filings) if company else (business_raw or b""))).hexdigest()
     snapshot_id = f"sec-snapshot-{digest[:16]}"
-    run_id = f"rklb-{engine}-{now:%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
+    run_id = f"{ticker.lower()}-{engine}-{now:%Y%m%dT%H%M%SZ}-{uuid.uuid4().hex[:8]}"
     timestamp = now.isoformat()
     template = json.loads((ROOT / "template" / "sections.json").read_text(encoding="utf-8"))
     meta = {
         "schema_version": "v1-draft", "run_id": run_id, "data_snapshot_id": snapshot_id,
-        "analysis_as_of": timestamp, "generated_at": timestamp, "ticker": "RKLB",
+        "analysis_as_of": timestamp, "generated_at": timestamp, "ticker": ticker,
         "company_name": data["entityName"],
-        "cik": "0001819994", "exchange": "NASDAQ", "security_type": "Common Stock",
+        "cik": cik, "exchange": exchange, "security_type": security_type,
         "currency": "USD", "engine": engine, "model": None, "sample": False,
         "code_version": "v0.1", "template_version": template["source_sha256"],
         "technical_defaults_version": "v1", "decision_policy_version": "v0.1",
         "filing_sha256": hashlib.sha256(business_raw).hexdigest() if business_raw else None,
     }
+    if company:
+        meta["companyfacts_sha256"] = raw_digest
+        meta["sec_filings"] = [{**{key: item[key] for key in ("form", "report_date", "filed", "accession_number", "primary_document", "url")},
+                                "sha256": hashlib.sha256(item["raw"]).hexdigest()} for item in filings]
     metrics, sources = [], []
 
     def add_source(selected, tag, unit):
         source_id = f"sec-{len(sources) + 1:03d}"
-        sources.append({"source_id": source_id, "url": FACTS_URL,
+        facts_url = FACTS_URL if company is None else f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+        sources.append({"source_id": source_id, "url": facts_url,
                         "title": f"SEC Company Facts · {tag}", "accessed_at": timestamp,
                         "accession_number": selected.get("accn"),
                         "location": f"us-gaap/{tag}, {unit}, {selected.get('start', 'instant')}~{selected['end']}, filed {selected['filed']}",
@@ -319,7 +420,7 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None):
                  "data_snapshot_id": snapshot_id, "facts": []}
     annual_revenue = next((m for m in metrics if m["metric_id"] == "revenue_fy2025" and m["status"] == "ok"), None)
     valid_filing = annual_revenue and any(s["source_id"] in annual_revenue["source_ids"] and s["accession_number"] == FILING_ACCESSION for s in sources)
-    if business_raw and as_of >= FILING_DATE and valid_filing:
+    if business_raw and ticker == "RKLB" and as_of >= FILING_DATE and valid_filing:
         business_digest = hashlib.sha256(business_raw).hexdigest()
         business = extract_business_facts(business_raw)
         launch = business.get("launch_revenue_fy2025")
@@ -347,40 +448,29 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None):
             "extracted-facts": extracted}
 
 
-def fetch_companyfacts(cache_path):
-    """Download once, with a declared SEC User-Agent, 1-second spacing and retries."""
-    if cache_path.exists():
+def fetch_companyfacts(cache_path, cik=1819994, max_age_hours=None):
+    """Read an eligible cache or fetch CIK-specific facts with SEC request spacing."""
+    if cache_path.exists() and (max_age_hours is None or time.time() - cache_path.stat().st_mtime <= max_age_hours * 3600):
         raw = cache_path.read_bytes()
-        return json.loads(raw), raw
-    user_agent = sec_user_agent()
-    request = urllib.request.Request(FACTS_URL, headers={"User-Agent": user_agent, "Accept-Encoding": "identity"})
-    for attempt in range(3):
-        try:
-            time.sleep(1)
-            with urllib.request.urlopen(request, timeout=30) as response:
-                raw = response.read()
-            data = json.loads(raw)
-            if data.get("cik") != 1819994:
-                raise ValueError("Unexpected SEC company response")
-            cache_path.parent.mkdir(parents=True, exist_ok=True)
-            cache_path.write_bytes(raw)
-            return data, raw
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
-            if attempt == 2 or isinstance(exc, urllib.error.HTTPError) and exc.code not in (429, 500, 502, 503, 504):
-                raise
-            time.sleep(2 ** attempt)
-    raise RuntimeError("SEC collection failed")
+        data = json.loads(raw)
+        if data.get("cik") != int(cik):
+            raise ValueError("SEC Company Facts CIK 불일치")
+        return data, raw
+    url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{int(cik):010d}.json"
+    raw = _download_sec(url)
+    data = json.loads(raw)
+    if data.get("cik") != int(cik):
+        raise ValueError("SEC Company Facts CIK 불일치")
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_bytes(raw)
+    return data, raw
 
 
 def fetch_10k(cache_path):
-    """Fetch the 2025 filing once with the same locally provided SEC identity."""
+    """Legacy RKLB 2025 filing cache reader for older runs."""
     if cache_path.exists():
         return cache_path.read_bytes()
-    user_agent = sec_user_agent()
-    request = urllib.request.Request(FILING_URL, headers={"User-Agent": user_agent, "Accept-Encoding": "identity"})
-    time.sleep(1)
-    with urllib.request.urlopen(request, timeout=30) as response:
-        raw = response.read()
+    raw = _download_sec(FILING_URL)
     if b"rocket lab" not in raw.lower() or b"2025" not in raw:
         raise ValueError("Unexpected SEC 10-K response")
     cache_path.parent.mkdir(parents=True, exist_ok=True)

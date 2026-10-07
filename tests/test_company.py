@@ -25,18 +25,19 @@ class CompanyCommandTests(unittest.TestCase):
                 publish.assert_not_called()
                 self.assertFalse((Path(temp) / "runs").exists())
 
-    def test_s0_pass_for_other_company_stops_before_rklb_collector(self):
+    def test_s0_pass_for_other_company_enters_its_own_collector(self):
         sys.path.insert(0, str(ROOT / "scripts"))
         import company
         from s0 import S0Result
 
         with tempfile.TemporaryDirectory() as temp:
+            eligible = S0Result("VRT", True, "S0 통과", "0001674101", "Vertiv", "NYSE")
             with patch.object(company, "ROOT", Path(temp)), patch.object(sys, "argv", ["company.py", "VRT", "--engine", "gpt"]), \
-                 patch.object(company, "load_s0", return_value=S0Result("VRT", True, "S0 통과")), \
-                 patch.object(company, "write_real_run") as collect:
+                 patch.object(company, "load_s0", return_value=eligible), \
+                 patch.object(company, "write_real_run", side_effect=ValueError("fixture stop")) as collect:
                 with self.assertRaises(SystemExit):
                     company.main()
-                collect.assert_not_called()
+                self.assertEqual(collect.call_args.args[2], eligible)
                 self.assertFalse((Path(temp) / "runs").exists())
 
     def test_sample_run_for_both_engines_validates(self):
