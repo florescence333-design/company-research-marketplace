@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import { listCompanies, loadCompany } from '../../lib/data.mjs';
 import { compareReports } from '../../lib/comparison.mjs';
+import { normalizeExchange } from '../../lib/exchange.mjs';
 
 export function getStaticPaths() {
   return listCompanies().map(company => ({ params: { ticker: company.ticker } }));
@@ -13,9 +14,9 @@ const comparison = compareReports(versions);
 const initialEngine = versions.gpt ? 'gpt' : 'claude';
 const current = versions[initialEngine];
 const companyName = (current.meta.company_name || ticker).replace(/\s+(?:Corp(?:oration)?|Inc(?:orporated)?)\.?$/i, '');
-const exchange = /^[A-Z][A-Z0-9.-]*$/.test(current.meta.exchange || '') ? current.meta.exchange : null;
-const marketSymbol = exchange ? `${exchange}:${ticker}` : null;
-const marketUrl = exchange ? `https://www.tradingview.com/symbols/${exchange}-${ticker}/` : null;
+const exchange = normalizeExchange(current.meta.exchange);
+const marketSymbol = exchange ? `${exchange.prefix}:${ticker}` : null;
+const marketUrl = exchange ? `https://www.tradingview.com/symbols/${exchange.prefix}-${ticker}/` : null;
 const isSample = Object.values(versions).every(v => v.meta.sample);
 const statusLabel = status => ({ complete: '작성 완료', partial: '부분 작성', unavailable: '자료 확인 대기' })[status] || '자료 확인 대기';
 const metricDisplay = (version, id) => {
@@ -44,7 +45,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
       <div class="content">
         <div class="intro-row">
           <div>
-            <div class="eyebrow">Company profile / {exchange || '거래소 확인 대기'}</div>
+            <div class="eyebrow">Company profile / {exchange?.label || '거래소 확인 불가'}</div>
             <h1>{companyName} <span class="ticker">{ticker}</span></h1>
             <p class="muted subtitle">기업 공시·재무 상태·분석 근거를 한 화면에서 확인합니다.</p>
           </div>
