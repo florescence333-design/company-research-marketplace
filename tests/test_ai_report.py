@@ -70,8 +70,11 @@ class AiReportTests(unittest.TestCase):
             write_run_state(folder, True, False)
             edited = json.loads((folder / "report-items.json").read_text(encoding="utf-8"))
             self.researched(edited, range(16))
+            edited["sections"][0]["status"] = "unavailable"  # Model-supplied status must be ignored.
             (folder / "report-items.json").write_text(json.dumps(edited, ensure_ascii=False), encoding="utf-8")
             finalize(folder, "claude-code")
+            finalized = json.loads((folder / "report-items.json").read_text(encoding="utf-8"))
+            self.assertEqual({section["status"] for section in finalized["sections"]}, {"complete"})
             self.assertEqual(json.loads((folder / "meta.json").read_text(encoding="utf-8"))["model"], "claude-code")
             self.assertEqual(validate_bundle(folder), [])
             edited["sections"][0]["body"] = "나중에 변조한 내용"

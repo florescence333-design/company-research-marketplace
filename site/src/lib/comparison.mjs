@@ -6,7 +6,7 @@ function indexSections(version) {
 function summary(section) {
   if (!section) return { status: '없음', webSources: 0, length: 0 };
   return {
-    status: section.status === 'partial' ? '부분 작성' : '자료 확인 대기',
+    status: ({ complete: '작성 완료', partial: '부분 작성', unavailable: '자료 확인 대기' })[section.status] || '자료 확인 대기',
     webSources: (section.source_ids || []).filter(id => id.startsWith('web-')).length,
     length: (section.body || '').length,
   };

@@ -8,11 +8,22 @@ from pathlib import Path
 from test_contract import ROOT
 
 sys.path.insert(0, str(ROOT / "scripts"))
-from report import build_report_items, render_report, validate_report_items
+from report import build_report_items, recalculate_statuses, render_report, validate_report_items
 from sec import build_sec_bundle
 
 
 class ReportTests(unittest.TestCase):
+    def test_status_is_derived_from_evidence_content_and_validation(self):
+        report = {"sections": [
+            {"section_id": "S01", "status": "complete", "body": "[해석] 사실. 반대 논거: 반례.", "source_ids": ["sec-001"]},
+            {"section_id": "S02", "status": "complete", "body": "본문만", "source_ids": ["sec-001"]},
+            {"section_id": "S03", "status": "complete", "body": "[해석] 사실. 반대 논거: 반례.", "source_ids": []},
+        ]}
+        recalculate_statuses(report)
+        self.assertEqual([s["status"] for s in report["sections"]], ["partial", "partial", "unavailable"])
+        recalculate_statuses(report, verified_ids={"S01", "S02", "S03"})
+        self.assertEqual([s["status"] for s in report["sections"]], ["complete", "partial", "unavailable"])
+
     def setUp(self):
         def fact(value, start, end):
             return {"val": value, "start": start, "end": end, "filed": "2026-03-01", "form": "10-K", "accn": "0001819994-26-000001"}

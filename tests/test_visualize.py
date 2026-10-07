@@ -16,7 +16,7 @@ class VisualizationTests(unittest.TestCase):
             folder = Path(temp)
             (folder / "meta.json").write_text(json.dumps({"run_id": "r1", "data_snapshot_id": "d1"}), encoding="utf-8")
             (folder / "report-items.json").write_text(json.dumps({"sections": [
-                {"section_id": sid, "status": "partial"} for sid in ("S04", "S08", "S09")
+                {"section_id": sid, "status": "complete"} for sid in ("S04", "S08", "S09")
             ]}), encoding="utf-8")
             report = folder / "report.md"
             report.write_text("Original report", encoding="utf-8")

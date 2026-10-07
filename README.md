@@ -1,5 +1,7 @@
 # Company Research Plugin — Windows 설치·실행 안내
 
+플러그인 현재 로컬 버전은 **0.5.0**이다. 공개 GitHub 원격은 푸시 전까지 이전 버전을 제공한다.
+
 미국 기업 티커 `RKLB`의 SEC 공시 수치를 수집하고 S0.5 기업별 커스텀 템플릿을 만든 뒤, 16개 대섹션과 필요한 하위 섹션을 분석하는 로컬 웹 화면을 만든다. 투자 판정은 현재 **`판정 보류 (v0.1)`**로 고정되어 있다. 검색을 시도하고도 근거를 찾지 못한 항목만 `자료 확인 대기`로 표시한다. 실제 결과와 합성 샘플을 혼동하지 않는다.
 
 ## 조교 PC에서 필요한 프로그램
@@ -63,6 +65,24 @@ npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 | `Bash(.../python.exe scripts/publish.py RKLB --engine claude --run-id <실행 ID>)` | 검증된 결과를 로컬 사이트에 선택하고 빌드·테스트한다. GitHub 푸시나 Cloudflare 배포는 하지 않는다. |
 
 `/company-publish RKLB`는 기존 실행을 다시 검증·로컬 게시하며 `--run-id`를 받을 수 있다. 권한 질문에서 위 범위를 벗어난 경로나 외부 전송 명령이 보이면 승인하지 말고 해당 명령을 확인한다. 자세한 배포 상태는 [배포 안내](docs/DEPLOYMENT.md)에 있다.
+
+## Codex로 실행하는 경우 — 시험 전
+
+같은 공개 GitHub 저장소를 사용하지만 Claude Code의 `/plugin`·`/company` 대신 Codex CLI의 플러그인 명령과 `$company` 스킬 호출을 사용한다. **Codex 마켓플레이스 설치부터 새 빈 폴더의 전체 AI 분석까지는 아직 실제 시험하지 않았다.** 공개 원격에 0.5.0을 푸시하기 전에는 이전 버전이 설치된다. 위의 Git·uv·Node.js/npm과 사용자 범위 `SEC_USER_AGENT`가 공통으로 필요하고, Claude Code 대신 Codex CLI와 ChatGPT 로그인이 필요하다.
+
+PowerShell에서 Codex CLI 설치 후 다음 명령을 실행한다. `plugin list`에 항목이 없거나 `plugin add`가 실패하면 설치 성공으로 간주하지 말고 패키지 호환성을 확인한다.
+
+```powershell
+npm.cmd install -g @openai/codex@0.160.1
+codex plugin marketplace add florescence333-design/company-research-marketplace
+codex plugin list --marketplace company-research-marketplace
+codex plugin add company-analysis@company-research-marketplace
+New-Item -ItemType Directory -Path "$env:USERPROFILE\Documents\CompanyResearchCodexTest"
+Set-Location "$env:USERPROFILE\Documents\CompanyResearchCodexTest"
+codex
+```
+
+Codex 입력창에서 로그인한 뒤 `$company RKLB`를 실행한다. 로컬 사이트 명령은 위 Claude 절차와 같고, 결과는 `.company-research/runs/RKLB/gpt/`에 저장된다. 로컬 게시만으로 GitHub·Cloudflare에 자동 배포되지는 않는다.
 
 ## 현재 범위
 

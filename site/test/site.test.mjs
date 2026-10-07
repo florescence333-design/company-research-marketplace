@@ -49,6 +49,10 @@ test('static dashboard and RKLB detail show their actual data status', () => {
   }
   assert.match(company, /보고서/);
   assert.match(company, /비교/);
+  assert.match(company, /기준 보고서 대비 정량 분석\(제품별 원가·고객 경제성 등\)은 보강 예정/);
+  if (existsSync(join(root, 'data/companies/RKLB/gpt/current.json'))) {
+    assert.match(company, /작성 완료/);
+  }
 });
 
 test('public build info contains only commit hash and build time', () => {

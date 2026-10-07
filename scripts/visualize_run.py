@@ -23,7 +23,7 @@ def validate_spec(folder: Path, spec: dict) -> list[str]:
         return ["플라이휠·밸류체인 도식 두 개가 필요함"]
     for kind, diagram in spec.items():
         refs = diagram.get("section_ids", [])
-        if len(refs) < 2 or any(sid not in items or items[sid]["status"] != "partial" for sid in refs):
+        if len(refs) < 2 or any(sid not in items or items[sid]["status"] not in ("complete", "partial") for sid in refs):
             errors.append(f"{kind}: 분석 완료된 보고서 섹션 두 개 이상을 근거로 지정해야 함")
         if len(diagram.get("explanation", [])) not in (3, 4) or any(not line.strip() for line in diagram["explanation"]):
             errors.append(f"{kind}: 쉬운 설명 3~4줄 필요")

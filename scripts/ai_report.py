@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 
 from company import write_run_state
-from report import build_report_items, render_report, validate_report_items
+from report import build_report_items, recalculate_statuses, render_report, validate_report_items
 from template_stage import validate_template
 from validate_bundle import validate_bundle
 from visualize_run import build_visualization
@@ -36,15 +36,13 @@ def validate_ai_changes(report, bundle, section_ids=None):
             continue
         if not section.get("search_queries"):
             errors.append(f"{section_id}: 웹 검색어 기록 없음")
-        if section.get("status") == "partial" and not section.get("source_ids"):
-            errors.append(f"{section_id}: 부분 분석에 출처 ID 없음")
-        if section.get("status") == "partial" and not any(s.startswith("web-") for s in section.get("source_ids", [])):
+        if section.get("source_ids") and not any(s.startswith("web-") for s in section.get("source_ids", [])):
             errors.append(f"{section_id}: 웹 리서치 출처 ID 없음")
-        if section.get("status") == "partial" and ("[해석]" not in section.get("body", "") or "반대 논거" not in section.get("body", "")):
+        if section.get("source_ids") and ("[해석]" not in section.get("body", "") or "반대 논거" not in section.get("body", "")):
             errors.append(f"{section_id}: [해석] 또는 반대 논거 없음")
-        if section.get("status") == "unavailable" and "자료 확인 대기" not in section.get("body", ""):
+        if not section.get("source_ids") and "자료 확인 대기" not in section.get("body", ""):
             errors.append(f"{section_id}: 검색 후 미확인 상태 설명 없음")
-        if section_id == "S12" and section.get("status") == "partial":
+        if section_id == "S12" and section.get("source_ids"):
             body = section.get("body", "")
             if "|" not in body or not re.search(r"20\d{2}", body) or re.search(r"\b[a-z]+(?:_[a-z0-9]+)+\b", body):
                 errors.append("S12: 한국어 지표명·연도별 표를 사용하고 내부 변수명은 본문에서 제외해야 함")
@@ -77,11 +75,21 @@ def finalize(folder: Path, model: str, section_ids=None, checkpoint=False):
         raise ValueError("; ".join(errors))
     run = read_json(folder / "run.json")
     original = {}
-    affected = [folder / name for name in ("meta.json", "report.md", "run.json", "validation.json",
+    affected = [folder / name for name in ("meta.json", "report-items.json", "report.md", "run.json", "validation.json",
                                             "diagrams/manifest.json", "diagrams/flywheel.mmd", "diagrams/value-chain.mmd", "review-only.json", "analysis-progress.json")]
     for path in affected:
         original[path] = path.read_bytes() if path.exists() else None
     try:
+        if checkpoint:
+            progress = read_json(folder / "analysis-progress.json") if (folder / "analysis-progress.json").exists() else {"completed_sections": []}
+            verified_ids = set(progress["completed_sections"]) | set(section_ids or [])
+        elif section_ids:
+            verified_ids = set(section_ids)
+        else:
+            verified_ids = {item["section_id"] for section in report["sections"]
+                            for item in (section, *section.get("subsections", []))}
+        recalculate_statuses(report, verified_ids)
+        (folder / "report-items.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         if not checkpoint:
             meta["model"] = model
         (folder / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

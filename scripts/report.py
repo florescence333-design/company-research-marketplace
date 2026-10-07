@@ -1,4 +1,4 @@
-"""Build an honest, partial 16-section report from a validated SEC snapshot."""
+"""Build and validate a sourced 16-section report from a SEC snapshot."""
 
 import argparse
 import json
@@ -11,6 +11,27 @@ from jsonschema import Draft202012Validator
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = json.loads((ROOT / "template" / "sections.json").read_text(encoding="utf-8"))["sections"]
 SCHEMA = json.loads((ROOT / "schemas" / "v1" / "report-items.schema.json").read_text(encoding="utf-8"))
+STATUS_LABELS = {"complete": "작성 완료", "partial": "부분 작성", "unavailable": "자료 확인 대기"}
+
+
+def section_status(item, *, verified=False):
+    """Derive display status from evidence, prose, and successful validation."""
+    sources = item.get("source_ids") or []
+    if not sources:
+        return "unavailable"
+    body = item.get("body") or ""
+    if body.strip() and "[해석]" in body and "반대 논거" in body and verified:
+        return "complete"
+    return "partial"
+
+
+def recalculate_statuses(report, verified_ids=()):
+    """Overwrite model supplied statuses for parents and nested sections."""
+    verified_ids = set(verified_ids)
+    for section in report.get("sections", []):
+        for item in (section, *section.get("subsections", [])):
+            item["status"] = section_status(item, verified=item.get("section_id") in verified_ids)
+    return report
 
 
 def build_report_items(bundle):
@@ -119,8 +140,8 @@ def build_report_items(bundle):
     add(14, "주가·기업가치 입력과 역DCF 세부 규칙이 없어 밸류에이션 계산·가격 판정을 보류한다.")
     add(15, f"후속 모니터링 항목: 매출({amount(rev_current)}), 영업손익({amount(op_current)}), 영업현금흐름({amount(ocf_current)}), 수주잔고({fact_amount('backlog_fy2025', ' USD')}). 목표치·확률 시나리오는 자료 확인 대기.", [x for x in (rev_current, op_current, ocf_current) if x], ["backlog_fy2025"] if "backlog_fy2025" in facts else [])
     add(16, f"확인된 최근 연간 매출은 {amount(rev_current)}. 나머지 사업·가격 평가와 투자 프레임워크 v2는 입력 대기. 최종 판정: 판정 보류 (v0.1).", [rev_current] if rev_current else [])
-    return {"schema_version": "v1-draft", "run_id": meta["run_id"],
-            "data_snapshot_id": meta["data_snapshot_id"], "sections": sections}
+    return recalculate_statuses({"schema_version": "v1-draft", "run_id": meta["run_id"],
+                                 "data_snapshot_id": meta["data_snapshot_id"], "sections": sections})
 
 
 def validate_report_items(report, bundle):
@@ -141,6 +162,8 @@ def validate_report_items(report, bundle):
             seen.add(sid)
             if set(item.get("source_ids", [])) - source_ids or set(item.get("metric_ids", [])) - metric_ids or set(item.get("fact_ids", [])) - fact_ids:
                 errors.append(f"섹션 {sid} 알 수 없는 출처·지표 ID")
+            if item.get("status") == "complete" and section_status(item, verified=True) != "complete":
+                errors.append(f"섹션 {sid} 작성 완료 조건 미충족")
     if len(report.get("sections", [])) != len(TEMPLATE):
         errors.append("16개 섹션 수 불일치")
     return errors
@@ -153,7 +176,7 @@ def render_report(report, bundle):
     for section in report["sections"]:
         for item, level in [(section, "##"), *[(sub, "###") for sub in section.get("subsections", [])]]:
             lines.extend([f"{level} {item['section_id']} {item['title']}", "",
-                          f"상태: {'부분 작성' if item['status'] == 'partial' else '자료 확인 대기'}", "",
+                          f"상태: {STATUS_LABELS[item['status']]}", "",
                           item["body"], ""])
             if item["source_ids"]:
                 lines.extend(["출처 ID: " + ", ".join(item["source_ids"]), ""])

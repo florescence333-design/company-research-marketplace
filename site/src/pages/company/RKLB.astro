@@ -8,6 +8,7 @@ const comparison = compareReports(versions);
 const initialEngine = versions.gpt ? 'gpt' : 'claude';
 const current = versions[initialEngine];
 const isSample = Object.values(versions).every(v => v.meta.sample);
+const statusLabel = status => ({ complete: '작성 완료', partial: '부분 작성', unavailable: '자료 확인 대기' })[status] || '자료 확인 대기';
 const metricDisplay = (version, id) => {
   const fact = version.metrics.find(item => item.metric_id === id);
   if (!fact || fact.status !== 'ok' || typeof fact.value !== 'number') return '확인 불가';
@@ -83,16 +84,17 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
         <div class="panel tab-panel" data-panel="0">
           <h2>기업 분석 보고서</h2>
           <p class="muted">확인 가능한 자료와 근거를 기준으로 표시합니다.</p>
+          <p class="report-quality-note">기준 보고서 대비 정량 분석(제품별 원가·고객 경제성 등)은 보강 예정</p>
           <nav id="report-toc" class="report-toc" aria-label="보고서 목차">
-            {current.reportItems.flatMap(section => [section, ...(section.subsections || [])]).map(section => <a href={`#report-${section.section_id}`}><span>{section.section_id} · {section.title}</span><small>{section.status === 'partial' ? '부분 작성' : '자료 확인 대기'}</small></a>)}
+            {current.reportItems.flatMap(section => [section, ...(section.subsections || [])]).map(section => <a href={`#report-${section.section_id}`}><span>{section.section_id} · {section.title}</span><small>{statusLabel(section.status)}</small></a>)}
           </nav>
           <div id="report-sections" class="report-sections">
             {current.reportItems.length ? current.reportItems.map(section =>
               <article class="report-section" id={`report-${section.section_id}`}>
-                <div class="report-section-head"><h3>{section.section_id} · {section.title}</h3><span class="report-status">{section.status === 'partial' ? '부분 작성' : '자료 확인 대기'}</span></div>
+                <div class="report-section-head"><h3>{section.section_id} · {section.title}</h3><span class="report-status">{statusLabel(section.status)}</span></div>
                 <div class="report-body">{section.body}</div>
                 {section.source_ids.length > 0 && <div class="report-sources">출처 ID: {section.source_ids.join(', ')}</div>}
-                {section.subsections?.map(sub => <section class="report-subsection" id={`report-${sub.section_id}`}><div class="report-section-head"><h3>{sub.section_id} · {sub.title}</h3><span class="report-status">{sub.status === 'partial' ? '부분 작성' : '자료 확인 대기'}</span></div><div class="report-body">{sub.body}</div>{sub.source_ids.length > 0 && <div class="report-sources">출처 ID: {sub.source_ids.join(', ')}</div>}</section>)}
+                {section.subsections?.map(sub => <section class="report-subsection" id={`report-${sub.section_id}`}><div class="report-section-head"><h3>{sub.section_id} · {sub.title}</h3><span class="report-status">{statusLabel(sub.status)}</span></div><div class="report-body">{sub.body}</div>{sub.source_ids.length > 0 && <div class="report-sources">출처 ID: {sub.source_ids.join(', ')}</div>}</section>)}
               </article>) : <p class="muted">16단계 Master Template 준비 완료 · 이 엔진의 실제 분석 보고서는 아직 생성되지 않았습니다.</p>}
           </div>
           <details class="report-original"><summary>보고서 원문 보기</summary><pre id="report-text">{current.report || '미생성'}</pre></details>
@@ -211,6 +213,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
     renderTemplate(initialVersion.template);
     renderReportSections(initialVersion.reportItems);
     function renderReportSections(items) {
+      const statusLabel = status => ({ complete: '작성 완료', partial: '부분 작성', unavailable: '자료 확인 대기' })[status] || '자료 확인 대기';
       const target = document.querySelector('#report-sections');
       const toc = document.querySelector('#report-toc');
       target.replaceChildren();
@@ -222,7 +225,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
         const tocName = document.createElement('span');
         tocName.textContent = `${section.section_id} · ${section.title}`;
         const tocStatus = document.createElement('small');
-        tocStatus.textContent = section.status === 'partial' ? '부분 작성' : '자료 확인 대기';
+        tocStatus.textContent = statusLabel(section.status);
         tocLink.append(tocName, tocStatus);
         toc.append(tocLink);
         for (const sub of section.subsections || []) {
@@ -230,7 +233,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
           subLink.href = `#report-${sub.section_id}`;
           subLink.className = 'toc-subsection';
           const name = document.createElement('span'); name.textContent = `${sub.section_id} · ${sub.title}`;
-          const state = document.createElement('small'); state.textContent = sub.status === 'partial' ? '부분 작성' : '자료 확인 대기';
+          const state = document.createElement('small'); state.textContent = statusLabel(sub.status);
           subLink.append(name, state); toc.append(subLink);
         }
         const article = document.createElement('article');
@@ -242,7 +245,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
         title.textContent = `${section.section_id} · ${section.title}`;
         const status = document.createElement('span');
         status.className = 'report-status';
-        status.textContent = section.status === 'partial' ? '부분 작성' : '자료 확인 대기';
+        status.textContent = statusLabel(section.status);
         heading.append(title, status);
         const body = document.createElement('div');
         body.className = 'report-body';
@@ -265,7 +268,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
           subTitle.textContent = `${sub.section_id} · ${sub.title}`;
           const subStatus = document.createElement('span');
           subStatus.className = 'report-status';
-          subStatus.textContent = sub.status === 'partial' ? '부분 작성' : '자료 확인 대기';
+          subStatus.textContent = statusLabel(sub.status);
           subHeading.append(subTitle, subStatus);
           const subBody = document.createElement('div');
           subBody.className = 'report-body';
@@ -456,6 +459,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
   :global(.report-section-head) { display:flex; align-items:center; gap:18px; }
   :global(.report-section-head h3) { flex:1; min-width:0; color:#e8f4eb; font-size:20px; line-height:1.35; font-weight:600; margin:0; }
   :global(.report-status) { color:#a9c9b5; font-size:10px; line-height:1.3; white-space:nowrap; border:1px solid #4a6b58; border-radius:4px; padding:5px 8px; }
+  .report-quality-note { color:#91a99a; font-size:12px; line-height:1.5; margin:4px 0 18px; }
   :global(.report-body) { color:#d0ded2; font:16px/1.7 'Noto Sans KR',sans-serif; max-width:760px; margin-top:22px; overflow-wrap:anywhere; }
   :global(.report-body h1), :global(.report-body h2), :global(.report-body h3), :global(.report-body h4), :global(.report-body h5), :global(.report-body h6) { color:#e1efe3; font-weight:600; line-height:1.45; }
   :global(.report-body h1), :global(.report-body h2) { font-size:18px; margin:28px 0 12px; }
