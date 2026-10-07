@@ -16,7 +16,7 @@ npm.cmd run preview --prefix site -- --host 127.0.0.1 --port 4321
 
 실제 RKLB 실행은 사용자 범위 `SEC_USER_AGENT` 환경변수를 현재 PowerShell 프로세스에서만 읽어 SEC에 전달한다. 값을 화면·로그·파일에 출력하지 않는다.
 
-선택적 `TWELVE_DATA_API_KEY`가 있으면 주가와 52주 범위 등 제공되는 시장 스냅샷을 로컬에서 조회한다. 키는 인증 헤더에만 쓰고 저장·출력하지 않는다. `market-snapshot.json`에는 정규화한 숫자와 시각만 기록한다. Twelve Data의 개인 요금제는 외부 표시·재배포 범위가 제한될 수 있으므로, 계정의 사이트 표시 권한이 확인되기 전에는 `scripts/export_site.py`가 이 파일을 원격 사이트 저장소로 내보내지 않는다. 권한을 확인한 경우에만 배포 실행 환경에서 `TWELVE_DATA_DISPLAY_ALLOWED=1`을 설정한다. 값이 없거나 API 항목이 미제공이면 화면은 `확인 불가`를 표시한다.
+선택적 `TWELVE_DATA_API_KEY`가 있으면 주가와 52주 범위 등 제공되는 시장 스냅샷을 로컬에서 조회한다. 키는 인증 헤더에만 쓰고 저장·출력하지 않는다. `site/data/companies/<티커>/market-snapshot.json`에는 해당 티커와 정규화한 숫자·시각만 기록하며, 제공자의 티커가 다르면 저장하지 않는다. Twelve Data의 개인 요금제는 외부 표시·재배포 범위가 제한될 수 있으므로, 계정의 사이트 표시 권한이 확인되기 전에는 `scripts/export_site.py`가 이 파일을 비공개 사이트 저장소로 내보내지 않는다. 권한을 확인한 경우에만 배포 실행 환경에서 `TWELVE_DATA_DISPLAY_ALLOWED=1`을 설정한다. 값이 없거나 API 항목이 미제공이면 화면은 `확인 불가`를 표시한다.
 
 ```powershell
 $env:SEC_USER_AGENT=[Environment]::GetEnvironmentVariable('SEC_USER_AGENT','User')
@@ -50,7 +50,7 @@ node scripts/check-deploy.mjs https://<확인할-주소> <사이트-저장소-�
 
 ## 독립 비공개 사이트 저장소 준비
 
-루트의 `scripts/export_site.py`는 Git이 추적하는 `site/` 코드와 로컬 게시 검증을 통과한 RKLB 선택 버전만 `deploy/site-repo/`에 복사한다. `.env`·`.dev.vars`·원본 SEC 캐시·다른 로컬 실행은 복사하지 않는다. `deploy/`는 루트 `.gitignore`에 포함되어 공개 플러그인 저장소에 들어가지 않는다. 이 PC의 `deploy/site-repo/`는 독립 Git 저장소로 초기화해 `main`·`dev` 로컬 브랜치를 준비했고, `npm ci`, `npm run build`, `npm test`가 통과했다. 공개 `build-info.json`은 독립 사이트 저장소 HEAD와 일치했다.
+루트의 `scripts/export_site.py`는 Git이 추적하는 `site/` 코드와 **기업·엔진별로 선택된 검증 완료 AI 버전만** `deploy/` 아래의 비공개 사이트 체크아웃에 복사한다. 합성 샘플·코드 초안·선택되지 않은 버전, `.env`·`.dev.vars`·원본 SEC 캐시·다른 로컬 실행은 복사하지 않는다. 선택 포인터·기업/엔진·실행/스냅샷 ID·보고서 해시가 맞아야 하며 기존 같은 버전의 내용이 다르면 중단한다. `deploy/`는 루트 `.gitignore`에 포함된다. 10/07 v0.6 2단계의 비공개 사이트 확인은 **로컬 dev 빌드만** 하며 Cloudflare 배포·운영 브랜치 변경은 하지 않는다.
 
 이 독립 저장소는 **비공개** GitHub 저장소에 연결되어 `main`·`dev`를 푸시했다. Cloudflare Pages의 운영 브랜치를 `main`, 개발 미리보기 브랜치를 `dev`로 두고 양쪽에 동일한 인증 비밀을 설정한다. `dev` 미리보기의 별칭·고유 주소와 운영 주소에서 보호 페이지·공개 빌드 정보 경로를 각각 검사한다. 원격에서 확인하기 전에는 배포 성공으로 기록하지 않는다.
 

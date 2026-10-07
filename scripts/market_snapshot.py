@@ -1,15 +1,17 @@
-"""Refresh the optional Twelve Data dashboard snapshot without persisting the API key."""
+"""Refresh one company's optional market snapshot without persisting the API key."""
 
+import argparse
 import json
 import math
 import os
+import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SNAPSHOT = ROOT / "site" / "data" / "market-snapshot.json"
 BASE = "https://api.twelvedata.com"
 
 
@@ -61,34 +63,46 @@ def _request(path, key):
     return result if isinstance(result, dict) else {}
 
 
-def refresh_market_snapshot():
+def refresh_market_snapshot(ticker, root=ROOT):
+    if not isinstance(ticker, str) or not re.fullmatch(r"[A-Z][A-Z0-9.-]{0,9}", ticker):
+        raise ValueError("안전하지 않은 시장 스냅샷 티커")
+    snapshot = root / "site" / "data" / "companies" / ticker / "market-snapshot.json"
     key = user_api_key()
     if not key:
-        SNAPSHOT.unlink(missing_ok=True)
+        snapshot.unlink(missing_ok=True)
         return "키 없음 · 시장 스냅샷 확인 불가"
-    if SNAPSHOT.exists():
+    if snapshot.exists():
         try:
-            saved = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
+            saved = json.loads(snapshot.read_text(encoding="utf-8"))
             created = datetime.fromisoformat(saved["fetched_at"])
-            if created > datetime.now(timezone.utc) - timedelta(hours=20):
+            if saved.get("ticker") == ticker and created > datetime.now(timezone.utc) - timedelta(hours=20):
                 return "기존 시장 스냅샷 재사용"
         except (OSError, KeyError, ValueError, json.JSONDecodeError):
             pass
     try:
-        quote = _request("/quote?symbol=RKLB&interval=1day", key)
+        quote = _request("/quote?" + urllib.parse.urlencode({"symbol": ticker, "interval": "1day"}), key)
     except (OSError, ValueError, json.JSONDecodeError):
-        SNAPSHOT.unlink(missing_ok=True)
+        snapshot.unlink(missing_ok=True)
         return "Twelve Data 주가 조회 실패 · 확인 불가"
+    if quote.get("symbol") and quote["symbol"].upper() != ticker:
+        snapshot.unlink(missing_ok=True)
+        return "시장 자료 티커 불일치 · 확인 불가"
     try:
-        statistics = _request("/statistics?symbol=RKLB", key)
+        statistics = _request("/statistics?" + urllib.parse.urlencode({"symbol": ticker}), key)
     except (OSError, ValueError, json.JSONDecodeError):
         statistics = None  # Pro/Venture plan only; absence is not zero.
+    if statistics and statistics.get("symbol") and statistics["symbol"].upper() != ticker:
+        statistics = None
     normalized = normalize_provider_data(quote, statistics)
+    normalized["ticker"] = ticker
     normalized["fetched_at"] = datetime.now(timezone.utc).isoformat()
-    SNAPSHOT.parent.mkdir(parents=True, exist_ok=True)
-    SNAPSHOT.write_text(json.dumps(normalized, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    snapshot.parent.mkdir(parents=True, exist_ok=True)
+    snapshot.write_text(json.dumps(normalized, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return "시장 스냅샷 갱신 · 제공되지 않은 항목은 확인 불가"
 
 
 if __name__ == "__main__":
-    print(refresh_market_snapshot())
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("ticker")
+    args = parser.parse_args()
+    print(refresh_market_snapshot(args.ticker.upper()))

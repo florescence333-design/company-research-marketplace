@@ -1,4 +1,4 @@
-"""Validate a completed RKLB run and atomically select it for the local site build."""
+"""Validate a completed company run and atomically select it for the local site build."""
 
 import argparse
 import hashlib
@@ -26,21 +26,42 @@ def _write_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def safe_ticker(ticker):
+    if not isinstance(ticker, str) or not re.fullmatch(r"[A-Z][A-Z0-9.-]{0,9}", ticker.upper()):
+        raise ValueError("안전하지 않은 티커")
+    return ticker.upper()
+
+
+def safe_engine(engine):
+    if engine not in ("gpt", "claude"):
+        raise ValueError("지원하지 않는 엔진")
+    return engine
+
+
+def safe_run_id(run_id):
+    if not isinstance(run_id, str) or run_id in (".", "..") or not re.fullmatch(r"[A-Za-z0-9._-]+", run_id):
+        raise ValueError("안전하지 않은 실행 ID")
+    return run_id
+
+
 def select_bundle(ticker, engine, run_id=None):
+    ticker, engine = safe_ticker(ticker), safe_engine(engine)
     base = ROOT / "runs" / ticker / engine
     if run_id:
-        if not re.fullmatch(r"[A-Za-z0-9._-]+", run_id):
-            raise ValueError("안전하지 않은 실행 ID")
-        folder = base / run_id
+        folder = base / safe_run_id(run_id)
         if not folder.is_dir():
             raise ValueError("지정 실행 없음")
+        if not folder.resolve().is_relative_to(base.resolve()):
+            raise ValueError("실행 경로가 해당 기업 밖임")
         return folder
     candidates = []
     if base.exists():
         for folder in base.iterdir():
             try:
+                if not folder.resolve().is_relative_to(base.resolve()):
+                    continue
                 meta = _json(folder / "meta.json")
-                if not meta["sample"] and not (folder / "review-only.json").exists():
+                if meta.get("ticker") == ticker and meta.get("engine") == engine and not meta["sample"] and not (folder / "review-only.json").exists():
                     candidates.append((datetime.fromisoformat(meta["generated_at"]), folder))
             except (OSError, ValueError, KeyError, json.JSONDecodeError):
                 continue
@@ -52,9 +73,17 @@ def select_bundle(ticker, engine, run_id=None):
     return candidates[0][1]
 
 
-def check_bundle(folder):
+def check_bundle(folder, expected_ticker=None, expected_engine=None):
     errors = validate_bundle(folder)
     meta = _json(folder / "meta.json")
+    ticker, engine = safe_ticker(meta.get("ticker")), safe_engine(meta.get("engine"))
+    safe_run_id(meta.get("run_id"))
+    if meta.get("ticker") != ticker:
+        errors.append("묶음 티커는 대문자 정규형이어야 함")
+    if expected_ticker is not None and ticker != safe_ticker(expected_ticker):
+        errors.append("선택 경로와 묶음 티커 불일치")
+    if expected_engine is not None and engine != safe_engine(expected_engine):
+        errors.append("선택 경로와 묶음 엔진 불일치")
     if meta["sample"]:
         errors.append("합성 샘플 게시 금지")
     if (folder / "review-only.json").exists():
@@ -65,7 +94,12 @@ def check_bundle(folder):
         verify_resume(folder, meta["ticker"], meta["engine"])
     except (OSError, ValueError, KeyError, json.JSONDecodeError) as exc:
         errors.append(f"실행 상태 확인 실패: {exc}")
-    errors.extend(verify_run(folder, ROOT / "data" / "sec" / "rklb-companyfacts.json"))
+    if ticker == "RKLB":
+        errors.extend(verify_run(folder, ROOT / "data" / "sec" / "rklb-companyfacts.json"))
+    else:
+        # The current SEC recalculator still reconstructs RKLB-specific facts.
+        # Never validate another company against RKLB's source; stage 4 replaces this gate.
+        errors.append(f"{ticker} SEC 원본 재계산은 아직 지원하지 않음")
     if errors:
         raise ValueError("; ".join(errors))
     validation = {"schema_version": "v1-draft", "run_id": meta["run_id"],
@@ -90,15 +124,16 @@ def check_bundle(folder):
 def activate_local(folder: Path, site_root: Path, build_callback):
     """Change a tiny pointer for the build; restore it if build/test fails."""
     meta = _json(folder / "meta.json")
-    run_id = meta["run_id"]
-    if not re.fullmatch(r"[A-Za-z0-9._-]+", run_id):
-        raise ValueError("안전하지 않은 실행 ID")
+    ticker, engine = safe_ticker(meta.get("ticker")), safe_engine(meta.get("engine"))
+    if meta.get("ticker") != ticker:
+        raise ValueError("묶음 티커는 대문자 정규형이어야 함")
+    run_id = safe_run_id(meta.get("run_id"))
     report_hash = hashlib.sha256((folder / "report.md").read_bytes()).hexdigest()
     diagram_path = folder / "diagrams" / "manifest.json"
     diagram_hash = hashlib.sha256(diagram_path.read_bytes()).hexdigest() if diagram_path.exists() else "no-viz"
     version_id = f"{run_id}-{hashlib.sha256((report_hash + diagram_hash).encode()).hexdigest()[:10]}"
     site_root = site_root.resolve()
-    engine_root = (site_root / "data" / "companies" / meta["ticker"] / meta["engine"]).resolve()
+    engine_root = (site_root / "data" / "companies" / ticker / engine).resolve()
     if not engine_root.is_relative_to(site_root):
         raise ValueError("게시 대상이 사이트 경로 밖임")
     engine_root.mkdir(parents=True, exist_ok=True)
@@ -139,22 +174,23 @@ def activate_local(folder: Path, site_root: Path, build_callback):
         lock.rmdir()
 
 
-def build_site():
-    print(refresh_market_snapshot())
+def build_site(ticker):
+    print(refresh_market_snapshot(ticker))
     subprocess.run(["npm.cmd", "run", "build", "--prefix", "site"], cwd=ROOT, check=True)
     subprocess.run(["npm.cmd", "test", "--prefix", "site"], cwd=ROOT, check=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("ticker", choices=("RKLB",))
+    parser.add_argument("ticker")
     parser.add_argument("--engine", required=True, choices=("gpt", "claude"))
     parser.add_argument("--run-id")
     args = parser.parse_args()
     try:
+        args.ticker = safe_ticker(args.ticker)
         folder = select_bundle(args.ticker, args.engine, args.run_id)
-        check_bundle(folder)
-        version = activate_local(folder, ROOT / "site", build_site)
+        check_bundle(folder, args.ticker, args.engine)
+        version = activate_local(folder, ROOT / "site", lambda: build_site(args.ticker))
     except (OSError, ValueError, subprocess.CalledProcessError, json.JSONDecodeError) as exc:
         print(f"로컬 게시 실패: {exc}", file=sys.stderr)
         return 1

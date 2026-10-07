@@ -12,13 +12,14 @@ const base = 'http://127.0.0.1:8788';
 const companyPages = readdirSync(resolve(root, 'dist', 'company'), { withFileTypes: true })
   .filter(entry => entry.isDirectory() && /^[A-Z][A-Z0-9.-]{0,9}$/.test(entry.name))
   .map(entry => `/company/${entry.name}/`);
+const protectedPages = ['/', ...companyPages];
 assert.ok(companyPages.length > 0, 'expected at least one built company detail page');
 const publicInfo = await fetch(`${base}/build-info.json`);
 assert.equal(publicInfo.status, 200);
 assert.deepEqual(Object.keys(await publicInfo.json()).sort(), ['built_at', 'commit_sha']);
 assert.equal(publicInfo.headers.get('Cache-Control'), 'no-store');
 
-for (const path of ['/', ...companyPages, '/_astro/example.css', '/data/companies/RKLB/gpt/meta.json']) {
+for (const path of [...protectedPages, '/_astro/example.css', '/data/companies/RKLB/gpt/meta.json']) {
   const response = await fetch(`${base}${path}`, { redirect: 'manual' });
   assert.equal(response.status, 302, `expected ${path} to require login`);
 }
@@ -31,7 +32,7 @@ const login = await fetch(`${base}/login`, {
 });
 assert.equal(login.status, 303);
 const cookie = login.headers.get('set-cookie').split(';')[0];
-for (const path of companyPages) {
+for (const path of protectedPages) {
   const protectedPage = await fetch(`${base}${path}`, { headers: { Cookie: cookie }, redirect: 'manual' });
   assert.equal(protectedPage.status, 200, `expected valid session for ${path}`);
   assert.equal(protectedPage.headers.get('Cache-Control'), 'private, no-store');
@@ -42,4 +43,11 @@ for (const path of companyPages) {
   const invalid = await fetch(`${base}${path}`, { headers: { Cookie: cookie + 'broken' }, redirect: 'manual' });
   assert.equal(invalid.status, 302, `expected invalid cookie to be rejected for ${path}`);
 }
-console.log(`Pages local auth passed for ${companyPages.length} company pages: public build info, protected content, signed session, invalid cookie`);
+const unpublished = '/company/JPM/';
+assert.ok(!companyPages.includes(unpublished), 'JPM fixture must remain unpublished');
+const unpublishedGuest = await fetch(`${base}${unpublished}`, { redirect: 'manual' });
+const unpublishedMember = await fetch(`${base}${unpublished}`, { headers: { Cookie: cookie }, redirect: 'manual' });
+assert.equal(unpublishedGuest.status, 302, 'unpublished page must require login');
+assert.equal(unpublishedMember.status, 404, 'signed-in user must not see an index fallback for an unpublished ticker');
+console.log(`Unpublished ${unpublished}: guest ${unpublishedGuest.status}, signed-in ${unpublishedMember.status}`);
+console.log(`Pages local auth passed for / and ${companyPages.length} company pages: public build info, protected content, signed session, invalid cookie`);
