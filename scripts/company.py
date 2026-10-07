@@ -15,6 +15,7 @@ from pathlib import Path
 from report import write_report
 from template_stage import create_template_draft, validate_template
 from sec import build_sec_bundle, fetch_10k, fetch_companyfacts
+from s0 import load_s0
 from validate_bundle import validate_bundle
 from visualize_run import build_visualization, verify_visualization
 
@@ -129,8 +130,15 @@ def main() -> int:
     if args.viz_only and not args.run_id:
         parser.error("--viz-only는 --run-id로 기존 실행을 지정해야 함")
     ticker = args.ticker.upper()
-    if ticker != "RKLB":
-        parser.error("The v0.1 collector currently supports RKLB only")
+    if args.sample:
+        if ticker != "RKLB":
+            parser.error("합성 예시는 현재 RKLB만 지원")
+    else:
+        eligibility = load_s0(ticker)
+        if not eligibility.eligible:
+            parser.error(eligibility.reason)
+        if ticker != "RKLB":
+            parser.error(f"{ticker}: S0 통과; SEC 수집기 일반화는 4단계에서 연결")
     if not args.run_id and not args.new and not args.sample and not args.output:
         candidates = find_recent_incomplete(ticker, args.engine, args.no_viz, args.original)
         if len(candidates) > 1:

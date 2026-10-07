@@ -4,11 +4,41 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from test_contract import ROOT
 
 
 class CompanyCommandTests(unittest.TestCase):
+    def test_s0_rejection_never_collects_or_creates_run(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import company
+        from s0 import S0Result
+
+        with tempfile.TemporaryDirectory() as temp:
+            with patch.object(company, "ROOT", Path(temp)), patch.object(sys, "argv", ["company.py", "JPM", "--engine", "gpt"]), \
+                 patch.object(company, "load_s0", return_value=S0Result("JPM", False, "지원 범위 밖: 금융·보험·부동산(SIC 6021)")), \
+                 patch.object(company, "write_real_run") as collect, patch.object(company.subprocess, "run") as publish:
+                with self.assertRaises(SystemExit):
+                    company.main()
+                collect.assert_not_called()
+                publish.assert_not_called()
+                self.assertFalse((Path(temp) / "runs").exists())
+
+    def test_s0_pass_for_other_company_stops_before_rklb_collector(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import company
+        from s0 import S0Result
+
+        with tempfile.TemporaryDirectory() as temp:
+            with patch.object(company, "ROOT", Path(temp)), patch.object(sys, "argv", ["company.py", "VRT", "--engine", "gpt"]), \
+                 patch.object(company, "load_s0", return_value=S0Result("VRT", True, "S0 통과")), \
+                 patch.object(company, "write_real_run") as collect:
+                with self.assertRaises(SystemExit):
+                    company.main()
+                collect.assert_not_called()
+                self.assertFalse((Path(temp) / "runs").exists())
+
     def test_sample_run_for_both_engines_validates(self):
         for engine in ("claude", "gpt"):
             with self.subTest(engine=engine), tempfile.TemporaryDirectory() as temp:
