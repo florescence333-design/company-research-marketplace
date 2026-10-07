@@ -62,6 +62,18 @@ test('public build info contains only commit hash and build time', () => {
   assert.match(info.built_at, /^\d{4}-\d{2}-\d{2}T/);
 });
 
+test('market widgets stay above the tabs while SEC cards live inside finance', () => {
+  const company = readFileSync(join(root, 'dist/company/RKLB/index.html'), 'utf8');
+  const tabs = company.indexOf('role="tablist"');
+  const finance = company.indexOf('data-panel="1"');
+  assert.ok(company.indexOf('id="tradingview-symbol-info"') > 0);
+  assert.ok(company.indexOf('id="tradingview-fundamentals"') > 0);
+  assert.ok(company.indexOf('id="tradingview-symbol-info"') < tabs);
+  assert.ok(company.indexOf('id="financial-cards"') > finance);
+  assert.ok(company.indexOf('id="warning-line"') > finance);
+  assert.doesNotMatch(company, /data-metric="(?:price|market_cap|pe_ttm|range_52w|dividend_yield)"/);
+});
+
 test('plugin workspace without Git records no commit rather than failing the build', () => {
   const temporary = mkdtempSync(join(tmpdir(), 'company-build-info-'));
   try {

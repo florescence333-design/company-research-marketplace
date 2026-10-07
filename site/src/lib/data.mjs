@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { buildFinancialDashboard, normalizeMarketSnapshot } from './dashboard.mjs';
+import { buildFinancialDashboard } from './dashboard.mjs';
 
 // Astro rebundles this module into dist, so import.meta.url points at dist during a build.
 const siteRoot = process.env.SITE_ROOT ? resolve(process.env.SITE_ROOT) : process.cwd();
@@ -12,8 +12,6 @@ function readJson(path) {
 
 export function loadCompany(ticker = 'RKLB') {
   const versions = {};
-  const marketPath = join(siteRoot, 'data', 'market-snapshot.json');
-  const marketRaw = existsSync(marketPath) ? readJson(marketPath) : null;
   for (const engine of ['claude', 'gpt']) {
     const engineRoot = join(dataRoot, ticker, engine);
     const pointerPath = join(engineRoot, 'current.json');
@@ -40,7 +38,6 @@ export function loadCompany(ticker = 'RKLB') {
         report: existsSync(join(folder, 'report.md')) ? readFileSync(join(folder, 'report.md'), 'utf8') : null,
       };
       versions[engine].dashboard = buildFinancialDashboard(versions[engine].metrics);
-      versions[engine].market = normalizeMarketSnapshot(marketRaw, versions[engine].metrics);
     }
   }
   if (Object.keys(versions).length === 0) {
@@ -48,7 +45,7 @@ export function loadCompany(ticker = 'RKLB') {
       meta: { ticker, engine, sample: true, analysis_as_of: null },
       decision: { verdict: '판정 보류 (v0.1)', reason: '샘플 화면: 실제 공시 분석 전' },
       metrics: [], sources: [], reportItems: [], template: null, diagrams: {}, report: null,
-      dashboard: buildFinancialDashboard([]), market: normalizeMarketSnapshot(null, []),
+      dashboard: buildFinancialDashboard([]),
     });
     versions.claude = placeholder('claude');
     versions.gpt = placeholder('gpt');
