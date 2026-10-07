@@ -1,6 +1,6 @@
 # Company Research Plugin — Windows 설치·실행 안내
 
-플러그인 현재 로컬 버전은 **0.5.0**이다. 공개 GitHub 원격은 푸시 전까지 이전 버전을 제공한다.
+공개 GitHub 마켓플레이스 플러그인 버전은 **0.5.0**이다. 아래 도식 표시 개선은 현재 로컬 코드와 비공개 `dev` 사이트에 먼저 적용하며, 공개 저장소에는 별도 푸시 전까지 반영되지 않는다.
 
 미국 기업 티커 `RKLB`의 SEC 공시 수치를 수집하고 S0.5 기업별 커스텀 템플릿을 만든 뒤, 16개 대섹션과 필요한 하위 섹션을 분석하는 로컬 웹 화면을 만든다. 투자 판정은 현재 **`판정 보류 (v0.1)`**로 고정되어 있다. 검색을 시도하고도 근거를 찾지 못한 항목만 `자료 확인 대기`로 표시한다. 실제 결과와 합성 샘플을 혼동하지 않는다.
 
@@ -12,6 +12,7 @@
 | uv | 0.11.26 | `winget install --id astral-sh.uv -e`; `uv --version` | 약 2~5분. Python 3.14는 플러그인이 첫 실행 때 준비 |
 | Node.js / npm | 24.19.0 / 11.17.0 | `winget install --id OpenJS.NodeJS.LTS -e`; `node --version`, `npm.cmd --version` | 약 3~10분 |
 | Claude Code | 2.1.199 | `npm.cmd install -g @anthropic-ai/claude-code`; `claude --version`; 첫 사용 시 `claude`에서 로그인 | 약 3~10분 + 로그인 |
+| Codex CLI | 0.160.1 | Codex 앱과 별도로 `npm.cmd install -g @openai/codex@0.160.1`; PowerShell에서는 `codex.cmd --version` | 설치 시간 + 로그인 |
 
 설치 뒤 PowerShell을 새로 열어 PATH를 갱신한다. Git Bash가 필요한 Claude Code 환경에서는 Git for Windows가 먼저 설치되어 있어야 한다. 설치 방식은 [uv 공식 문서](https://docs.astral.sh/uv/getting-started/installation/)와 [Claude Code 공식 문서](https://docs.anthropic.com/en/docs/claude-code/getting-started)를 참고한다. 이 저장소에서 테스트한 조합은 위 버전이며, 다른 버전은 아직 검증하지 않았다.
 
@@ -66,23 +67,32 @@ npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 
 `/company-publish RKLB`는 기존 실행을 다시 검증·로컬 게시하며 `--run-id`를 받을 수 있다. 권한 질문에서 위 범위를 벗어난 경로나 외부 전송 명령이 보이면 승인하지 말고 해당 명령을 확인한다. 자세한 배포 상태는 [배포 안내](docs/DEPLOYMENT.md)에 있다.
 
-## Codex로 실행하는 경우 — 시험 전
+## Codex CLI로 실행하는 경우 — 새 빈 폴더 리허설 완료
 
-같은 공개 GitHub 저장소를 사용하지만 Claude Code의 `/plugin`·`/company` 대신 Codex CLI의 플러그인 명령과 `$company` 스킬 호출을 사용한다. **Codex 마켓플레이스 설치부터 새 빈 폴더의 전체 AI 분석까지는 아직 실제 시험하지 않았다.** 공개 원격에 0.5.0을 푸시하기 전에는 이전 버전이 설치된다. 위의 Git·uv·Node.js/npm과 사용자 범위 `SEC_USER_AGENT`가 공통으로 필요하고, Claude Code 대신 Codex CLI와 ChatGPT 로그인이 필요하다.
-
-PowerShell에서 Codex CLI 설치 후 다음 명령을 실행한다. `plugin list`에 항목이 없거나 `plugin add`가 실패하면 설치 성공으로 간주하지 말고 패키지 호환성을 확인한다.
+Claude Code와 같은 공개 GitHub 마켓플레이스를 사용한다. Codex 앱을 설치했더라도 CLI는 별도로 설치해야 한다. PowerShell 실행 정책에서 `codex` 대신 `codex.cmd`를 사용한다. Git·uv·Node.js/npm과 사용자 범위 `SEC_USER_AGENT`는 Claude 경로와 공통이며, Codex 계정 로그인도 필요하다. 아래 절차는 Windows의 새 빈 폴더에서 **0.5.0 설치 후 `$company RKLB`부터 로컬 게시까지 실측**했다.
 
 ```powershell
 npm.cmd install -g @openai/codex@0.160.1
-codex plugin marketplace add florescence333-design/company-research-marketplace
-codex plugin list --marketplace company-research-marketplace
-codex plugin add company-analysis@company-research-marketplace
+codex.cmd plugin marketplace add florescence333-design/company-research-marketplace
+codex.cmd plugin list --marketplace company-research-marketplace
+codex.cmd plugin add company-analysis@company-research-marketplace
 New-Item -ItemType Directory -Path "$env:USERPROFILE\Documents\CompanyResearchCodexTest"
 Set-Location "$env:USERPROFILE\Documents\CompanyResearchCodexTest"
-codex
+codex.cmd --no-daemon -a on-request -s workspace-write -c sandbox_workspace_write.network_access=true
 ```
 
-Codex 입력창에서 로그인한 뒤 `$company RKLB`를 실행한다. 로컬 사이트 명령은 위 Claude 절차와 같고, 결과는 `.company-research/runs/RKLB/gpt/`에 저장된다. 로컬 게시만으로 GitHub·Cloudflare에 자동 배포되지는 않는다.
+설치 전 `plugin list`의 `VERSION` 칸이 비어 있어도 정상이다. 설치 후 플러그인 경로의 `company-analysis/0.5.0`과 Codex 앱 플러그인 화면의 **설치됨** 표시를 확인했다. 설치는 CLI에서 실측했고, **앱에서 `$company RKLB`를 실행하는 경로는 아직 시험 전**이다. Codex 앱이 켜진 상태에서 CLI를 일반 실행하면 `os error 5`가 발생해 위 명령에 `--no-daemon`을 넣었다. 기본 샌드박스에서는 인터넷·작업 폴더 밖 접근이 막혀 Python 준비가 실패했으며, 위 `workspace-write`·네트워크 설정으로 실행했다. [OpenAI 플러그인 안내](https://developers.openai.com/plugins/build/plugins)와 [Codex 설정 참고](https://learn.chatgpt.com/docs/config-file/config-reference)를 함께 볼 수 있다.
+
+Codex 입력창은 **영문 입력 상태**로 두고 `$company RKLB`를 입력한다. 승인 질문은 리허설에서 **5~6번** 나왔다. 횟수나 스크립트 목록은 고정되어 있지 않다. 요청된 명령이 **현재 작업 폴더 안의 `.company-research/` 플러그인 스크립트**를 실행하는지 확인한 뒤 해당되면 **2번(`p`)**을 선택한다. 다른 경로나 예상하지 못한 외부 전송 명령이면 먼저 내용을 확인한다. 리허설에서는 **13:16 실행 시작 → 13:20 SEC 수집의 첫 승인 질문 → 13:34 로컬 게시 완료**, 실행부터 게시까지 약 **18분**이 걸렸다.
+
+결과는 현재 폴더의 `.company-research/runs/RKLB/gpt/<실행 ID>/`에 저장되고, 게시된 사이트 데이터는 `.company-research/site/data/companies/RKLB/gpt/`에 있다. 완료 후 **다른 PowerShell 창**에서 같은 작업 폴더로 이동해 로컬 사이트를 연다.
+
+```powershell
+Set-Location "$env:USERPROFILE\Documents\CompanyResearchCodexTest"
+npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
+```
+
+브라우저 주소는 `http://127.0.0.1:4321/company/RKLB/`이며 서버는 `Ctrl+C`로 종료한다. 로컬 게시만으로 GitHub나 Cloudflare에 자동 배포되지는 않는다.
 
 ## 현재 범위
 

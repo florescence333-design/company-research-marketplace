@@ -118,11 +118,12 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
   </div>
   <script>
     import mermaid from 'mermaid';
+    import { diagramWidth, styleDiagramNodes } from '../../lib/diagram-style.mjs';
     import { Marked } from 'marked';
     import DOMPurify from 'dompurify';
     const main = document.querySelector('main[data-versions]');
     const versions = JSON.parse(main.dataset.versions);
-    mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict', flowchart: { nodeSpacing: 80, rankSpacing: 100, wrappingWidth: 190, diagramPadding: 24 } });
+    mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict', flowchart: { nodeSpacing: 56, rankSpacing: 70, wrappingWidth: 180, diagramPadding: 16 } });
     let diagramSequence = 0;
     const markdown = new Marked({ gfm: true });
     markdown.use({ renderer: { html() { return ''; } } });
@@ -338,7 +339,8 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
           if (sequence === diagramSequence) {
             canvas.innerHTML = svg;
             const graphic = canvas.querySelector('svg');
-            if (graphic?.viewBox?.baseVal?.width) graphic.style.width = `${Math.ceil(graphic.viewBox.baseVal.width)}px`;
+            styleDiagramNodes(graphic);
+            if (graphic?.viewBox?.baseVal?.width) graphic.style.width = `${diagramWidth(graphic.viewBox.baseVal.width)}px`;
           }
         } catch (error) { console.error('Mermaid render error', error); canvas.textContent = '도식 렌더링 실패 · 원문을 확인하세요.'; }
       }
@@ -451,8 +453,8 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
   :global(.business-diagram p) { color:#b9c9bd; font-size:15px; line-height:1.6; margin:6px 0; }
   :global(.business-diagram small) { display:block; margin-top:13px; color:#86b9aa; }
   :global(.diagram-canvas) { overflow:auto; margin:18px 0; }
-  :global(.diagram-canvas svg) { min-width:860px; max-width:none !important; height:auto; }
-  :global(.diagram-canvas svg .node .label p) { color:#1a1a1a !important; }
+  :global(.diagram-canvas svg) { min-width:720px; max-width:none !important; height:auto; }
+  :global(.diagram-canvas svg .node .label p) { color:inherit !important; }
   :global(.diagram-canvas .edgeLabel) { font-size:14px !important; color:#e2f3e7 !important; }
   :global(.diagram-canvas .edgeLabel rect), :global(.diagram-canvas .labelBkg) { background:#1d3529 !important; fill:#1d3529 !important; }
   :global(.diagram-canvas .edgeLabel p) { color:#e2f3e7 !important; font-size:14px !important; line-height:1.5; margin:0; padding:2px 5px; background:#1d3529; }
