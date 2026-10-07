@@ -17,6 +17,9 @@ test('only the exact build-info path is public', async () => {
   const other = await guard(ctx('https://example.test/data/companies/RKLB/meta.json'));
   assert.equal(other.status, 302);
   assert.equal(other.headers.get('Location'), 'https://example.test/login');
+  const otherCompany = await guard(ctx('https://example.test/company/VRT/'));
+  assert.equal(otherCompany.status, 302);
+  assert.equal(otherCompany.headers.get('Location'), 'https://example.test/login');
 });
 
 test('missing secrets fail closed', async () => {
@@ -29,6 +32,7 @@ test('signed cookie grants access and version change revokes it', async () => {
   const form = new URLSearchParams({ password: secrets.AUTH_PASSWORD });
   const loggedIn = await login(ctx('https://example.test/login', secrets, '', 'POST', form));
   assert.equal(loggedIn.status, 303);
+  assert.equal(loggedIn.headers.get('Location'), '/');
   const setCookie = loggedIn.headers.get('Set-Cookie');
   assert.match(setCookie, /HttpOnly/);
   assert.match(setCookie, /Secure/);
@@ -44,6 +48,9 @@ test('signed cookie grants access and version change revokes it', async () => {
   assert.doesNotMatch(csp, /script-src[^;]*https:\/\/fonts\.googleapis\.com/);
   const revoked = await guard(ctx('https://example.test/data.json', { ...secrets, SESSION_VERSION: 'v2' }, cookie));
   assert.equal(revoked.status, 302);
+  const invalidVrt = await guard(ctx('https://example.test/company/VRT/', secrets, cookie + 'broken'));
+  assert.equal(invalidVrt.status, 302);
+  assert.equal(invalidVrt.headers.get('Location'), 'https://example.test/login');
 });
 
 test('wrong password does not issue a session', async () => {

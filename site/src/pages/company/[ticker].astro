@@ -1,12 +1,21 @@
 ---
 import Layout from '../../layouts/Layout.astro';
-import { loadCompany } from '../../lib/data.mjs';
+import { listCompanies, loadCompany } from '../../lib/data.mjs';
 import { compareReports } from '../../lib/comparison.mjs';
 
-const versions = loadCompany('RKLB');
+export function getStaticPaths() {
+  return listCompanies().map(company => ({ params: { ticker: company.ticker } }));
+}
+
+const { ticker } = Astro.params;
+const versions = loadCompany(ticker);
 const comparison = compareReports(versions);
 const initialEngine = versions.gpt ? 'gpt' : 'claude';
 const current = versions[initialEngine];
+const companyName = (current.meta.company_name || ticker).replace(/\s+(?:Corp(?:oration)?|Inc(?:orporated)?)\.?$/i, '');
+const exchange = /^[A-Z][A-Z0-9.-]*$/.test(current.meta.exchange || '') ? current.meta.exchange : null;
+const marketSymbol = exchange ? `${exchange}:${ticker}` : null;
+const marketUrl = exchange ? `https://www.tradingview.com/symbols/${exchange}-${ticker}/` : null;
 const isSample = Object.values(versions).every(v => v.meta.sample);
 const statusLabel = status => ({ complete: '작성 완료', partial: '부분 작성', unavailable: '자료 확인 대기' })[status] || '자료 확인 대기';
 const metricDisplay = (version, id) => {
@@ -21,22 +30,22 @@ const lossPeDisplay = version => {
 };
 const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.metric_id) && m.status === 'ok' && typeof m.value === 'number').sort((a, b) => a.metric_id.localeCompare(b.metric_id));
 ---
-<Layout title="RKLB 분석 · Company Research">
+<Layout title={`${ticker} 분석 · Company Research`}>
   <div class="shell">
     <aside>
       <a class="brand" href="/"><span class="brand-mark">R</span><span>RESEARCH / LAB</span></a>
       <div class="aside-label">Workspace</div>
       <a class="nav-link" href="/">▦ &nbsp; 기업 목록</a>
-      <a class="nav-link active" href="/company/RKLB/">⌁ &nbsp; RKLB 분석</a>
+      <a class="nav-link active" href={`/company/${ticker}/`}>⌁ &nbsp; {ticker} 분석</a>
       <div class="sidebar-note">투자 결론은 판정 세부 기준 확정 후 제공합니다.<br/>Decision policy v0.1</div>
     </aside>
-    <main data-versions={JSON.stringify(versions)}>
-      <div class="topbar"><span><a href="/">COMPANIES</a> <span class="muted">/ RKLB</span></span><span class="avatar">R</span></div>
+    <main data-versions={JSON.stringify(versions)} data-market-symbol={marketSymbol || ''}>
+      <div class="topbar"><span><a href="/">COMPANIES</a> <span class="muted">/ {ticker}</span></span><span class="avatar">{ticker[0]}</span></div>
       <div class="content">
         <div class="intro-row">
           <div>
-            <div class="eyebrow">Company profile / NASDAQ</div>
-            <h1>Rocket Lab <span class="ticker">RKLB</span></h1>
+            <div class="eyebrow">Company profile / {exchange || '거래소 확인 대기'}</div>
+            <h1>{companyName} <span class="ticker">{ticker}</span></h1>
             <p class="muted subtitle">기업 공시·재무 상태·분석 근거를 한 화면에서 확인합니다.</p>
           </div>
           <div class="engine-switch" role="group" aria-label="분석 엔진">
@@ -63,14 +72,14 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
           </div>
         </section>
 
-        <section class="panel market-chart" aria-labelledby="price-chart-title">
-          <div class="chart-heading"><div><div class="eyebrow">Market / NASDAQ:RKLB</div><h2 id="price-chart-title">주가 차트</h2></div><span>TradingView 무료 위젯 · 표시 지연 가능</span></div>
-          <div class="tradingview-widget-container"><div id="tradingview-chart" class="tradingview-widget-container__widget">차트 불러오는 중</div><div class="tradingview-credit"><a href="https://www.tradingview.com/symbols/NASDAQ-RKLB/" target="_blank" rel="noopener nofollow noreferrer">RKLB chart by TradingView ↗</a></div></div>
+        <section class="panel market-chart" aria-labelledby="price-chart-title" hidden={!marketSymbol}>
+          <div class="chart-heading"><div><div class="eyebrow">Market / {marketSymbol}</div><h2 id="price-chart-title">주가 차트</h2></div><span>TradingView 무료 위젯 · 표시 지연 가능</span></div>
+          <div class="tradingview-widget-container"><div id="tradingview-chart" class="tradingview-widget-container__widget">차트 불러오는 중</div><div class="tradingview-credit"><a href={marketUrl} target="_blank" rel="noopener nofollow noreferrer">{ticker} chart by TradingView ↗</a></div></div>
           <p class="market-note">시장 수치는 TradingView가 제공하는 항목과 시점에 따릅니다. SEC 재무 지표의 기준일과 다를 수 있습니다.</p>
         </section>
 
-        <section class="panel market-widgets" aria-labelledby="market-widgets-title">
-          <div class="chart-heading"><div><div class="eyebrow">Market snapshot / NASDAQ:RKLB</div><h2 id="market-widgets-title">시장 정보</h2></div><span>TradingView 무료 위젯 · 항목별 제공 여부는 TradingView 기준</span></div>
+        <section class="panel market-widgets" aria-labelledby="market-widgets-title" hidden={!marketSymbol}>
+          <div class="chart-heading"><div><div class="eyebrow">Market snapshot / {marketSymbol}</div><h2 id="market-widgets-title">시장 정보</h2></div><span>TradingView 무료 위젯 · 항목별 제공 여부는 TradingView 기준</span></div>
           <div class="market-widget-grid">
             <div class="market-widget"><h3>주가·기업 정보</h3><div id="tradingview-symbol-info" class="tradingview-widget-container"><div class="tradingview-widget-container__widget">시장 정보 불러오는 중</div></div></div>
             <div class="market-widget"><h3>기업 재무 지표</h3><div id="tradingview-fundamentals" class="tradingview-widget-container"><div class="tradingview-widget-container__widget">기업 지표 불러오는 중</div></div></div>
@@ -123,6 +132,7 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
     import DOMPurify from 'dompurify';
     const main = document.querySelector('main[data-versions]');
     const versions = JSON.parse(main.dataset.versions);
+    const marketSymbol = main.dataset.marketSymbol;
     mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict', flowchart: { nodeSpacing: 56, rankSpacing: 70, wrappingWidth: 180, diagramPadding: 16 } });
     let diagramSequence = 0;
     const markdown = new Marked({ gfm: true });
@@ -180,16 +190,18 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
       warnings.replaceChildren(heading, ...(dashboard.warnings.length ? dashboard.warnings : ['현재 계산 가능한 경고 없음']).map(line => { const item = document.createElement('strong'); item.textContent = line; return item; }));
     }
     function mountTradingView() {
+      if (!marketSymbol) return;
       const host = document.querySelector('#tradingview-chart');
       host.replaceChildren();
       const script = document.createElement('script');
       script.async = true;
       script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-      script.textContent = JSON.stringify({ autosize: true, symbol: 'NASDAQ:RKLB', interval: 'D', timezone: 'exchange', theme: 'dark', style: '1', locale: 'en', hide_side_toolbar: true, allow_symbol_change: false, save_image: false, calendar: false });
-      script.onerror = () => { host.textContent = '차트를 불러오지 못했습니다. TradingView에서 RKLB 차트를 확인하세요.'; };
+      script.textContent = JSON.stringify({ autosize: true, symbol: marketSymbol, interval: 'D', timezone: 'exchange', theme: 'dark', style: '1', locale: 'en', hide_side_toolbar: true, allow_symbol_change: false, save_image: false, calendar: false });
+      script.onerror = () => { host.textContent = '차트를 불러오지 못했습니다. TradingView에서 차트를 확인하세요.'; };
       host.append(script);
     }
     function mountMarketWidget(selector, filename, settings) {
+      if (!marketSymbol) return;
       const host = document.querySelector(selector);
       const widget = host.querySelector('.tradingview-widget-container__widget');
       widget.replaceChildren();
@@ -201,8 +213,8 @@ const annualRevenue = current.metrics.filter(m => /^revenue_fy\d{4}$/.test(m.met
       host.append(script);
     }
     mountTradingView();
-    mountMarketWidget('#tradingview-symbol-info', 'embed-widget-symbol-info.js', { symbol: 'NASDAQ:RKLB', width: '100%', locale: 'en', colorTheme: 'dark', isTransparent: true });
-    mountMarketWidget('#tradingview-fundamentals', 'embed-widget-financials.js', { symbol: 'NASDAQ:RKLB', width: '100%', height: 420, locale: 'en', colorTheme: 'dark', isTransparent: true, displayMode: 'adaptive' });
+    mountMarketWidget('#tradingview-symbol-info', 'embed-widget-symbol-info.js', { symbol: marketSymbol, width: '100%', locale: 'en', colorTheme: 'dark', isTransparent: true });
+    mountMarketWidget('#tradingview-fundamentals', 'embed-widget-financials.js', { symbol: marketSymbol, width: '100%', height: 420, locale: 'en', colorTheme: 'dark', isTransparent: true, displayMode: 'adaptive' });
     function renderTemplate(source) {
       const target = document.querySelector('#template-render');
       const fallback = document.querySelector('#template-text');

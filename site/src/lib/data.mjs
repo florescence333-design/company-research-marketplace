@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { buildFinancialDashboard } from './dashboard.mjs';
 
@@ -10,20 +10,36 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
-export function loadCompany(ticker = 'RKLB') {
+const safeTicker = ticker => {
+  if (typeof ticker !== 'string') throw new Error(`Invalid ticker: ${ticker}`);
+  const value = String(ticker).toUpperCase();
+  if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(value)) throw new Error(`Invalid ticker: ${ticker}`);
+  return value;
+};
+
+export function loadCompany(ticker, root = dataRoot) {
+  ticker = safeTicker(ticker);
   const versions = {};
   for (const engine of ['claude', 'gpt']) {
-    const engineRoot = join(dataRoot, ticker, engine);
+    const engineRoot = join(root, ticker, engine);
     const pointerPath = join(engineRoot, 'current.json');
     let folder = engineRoot;
     if (existsSync(pointerPath)) {
       const pointer = readJson(pointerPath);
       const version = pointer.version_id || pointer.run_id;
-      folder = /^[A-Za-z0-9._-]+$/.test(version || '') ? join(engineRoot, 'versions', version) : '';
+      if (version === '.' || version === '..' || !/^[A-Za-z0-9._-]+$/.test(version || '')) {
+        throw new Error(`Invalid selected version for ticker ${ticker}`);
+      }
+      folder = join(engineRoot, 'versions', version);
+      if (!existsSync(join(folder, 'meta.json')) || !existsSync(join(folder, 'decision.json'))) {
+        throw new Error(`Missing selected version for ticker ${ticker}: ${version}`);
+      }
     }
     if (existsSync(join(folder, 'meta.json')) && existsSync(join(folder, 'decision.json'))) {
+      const meta = readJson(join(folder, 'meta.json'));
+      if (meta.ticker !== ticker) throw new Error(`Selected data ticker mismatch: expected ${ticker}`);
       versions[engine] = {
-        meta: readJson(join(folder, 'meta.json')),
+        meta,
         decision: readJson(join(folder, 'decision.json')),
         metrics: existsSync(join(folder, 'metrics.json')) ? readJson(join(folder, 'metrics.json')).metrics : [],
         sources: existsSync(join(folder, 'sources.json')) ? readJson(join(folder, 'sources.json')).sources : [],
@@ -51,4 +67,27 @@ export function loadCompany(ticker = 'RKLB') {
     versions.gpt = placeholder('gpt');
   }
   return versions;
+}
+
+export function listCompanies(root = dataRoot) {
+  if (!existsSync(root)) return [];
+  return readdirSync(root, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && /^[A-Z][A-Z0-9.-]{0,9}$/.test(entry.name))
+    .map(entry => entry.name)
+    .filter(ticker => ['claude', 'gpt'].some(engine => {
+      const engineRoot = join(root, ticker, engine);
+      return existsSync(join(engineRoot, 'current.json')) ||
+        (existsSync(join(engineRoot, 'meta.json')) && existsSync(join(engineRoot, 'decision.json')));
+    }))
+    .sort()
+    .map(ticker => {
+      const versions = loadCompany(ticker, root);
+      const current = versions.gpt || versions.claude;
+      return {
+        ticker,
+        name: current.meta.company_name || ticker,
+        exchange: current.meta.exchange || null,
+        versions,
+      };
+    });
 }

@@ -14,7 +14,7 @@ export async function onRequest(context) {
     return new Response('Invalid request', { status: 400 });
   }
   if (!matchesPassword(submitted, context.env.AUTH_PASSWORD)) return new Response('Wrong password', { status: 401, headers: { 'Cache-Control': 'no-store' } });
-  const headers = new Headers({ 'Location': '/company/RKLB/', 'Cache-Control': 'no-store' });
+  const headers = new Headers({ 'Location': '/', 'Cache-Control': 'no-store' });
   headers.append('Set-Cookie', await issueCookie(context.env));
   return new Response(null, { status: 303, headers });
 }
