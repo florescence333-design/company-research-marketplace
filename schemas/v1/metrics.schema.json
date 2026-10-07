@@ -15,6 +15,7 @@
         "status": {"enum": ["ok", "not_applicable", "unavailable", "collection_failed"]},
         "unit": {"type": "string", "minLength": 1},
         "approximate": {"type": "boolean"},
+        "calculation": {"enum": ["annual_minus_nine_months", "annual_plus_current_ytd_minus_prior_ytd"]},
         "reason": {"type": "string", "minLength": 1},
         "period_start": {"type": "string", "format": "date"},
         "period_end": {"type": "string", "format": "date"},

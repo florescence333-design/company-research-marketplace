@@ -145,11 +145,16 @@ def _eligible(entry, as_of):
     return entry.get("form") in ("10-K", "10-Q") and entry.get("filed", "9999") <= as_of and entry.get("end", "9999") <= as_of
 
 
-def annual_facts(entries, as_of):
+def _eligible_period(entry, as_of):
+    return entry.get("form") in ("10-K", "10-Q", "10-K/A", "10-Q/A") and entry.get("filed", "9999") <= as_of and entry.get("end", "9999") <= as_of
+
+
+def annual_facts(entries, as_of, include_amended=False):
     """Latest known annual fact per period end, newest period first."""
     chosen = {}
     for entry in entries:
-        if not _eligible(entry, as_of) or entry.get("form") != "10-K":
+        if not (_eligible_period(entry, as_of) if include_amended else _eligible(entry, as_of)) \
+                or entry.get("form") not in (("10-K", "10-K/A") if include_amended else ("10-K",)):
             continue
         duration = _duration(entry)
         if duration is None or not 330 <= duration <= 380 or not isinstance(entry.get("val"), (int, float)):
@@ -160,11 +165,12 @@ def annual_facts(entries, as_of):
     return [chosen[end] for end in sorted(chosen, reverse=True)]
 
 
-def quarterly_facts(entries, as_of):
+def quarterly_facts(entries, as_of, include_amended=False):
     """Disclosed standalone quarters, excluding year-to-date 10-Q values."""
     chosen = {}
     for entry in entries:
-        if not _eligible(entry, as_of) or not 70 <= (_duration(entry) or 0) <= 110:
+        if not (_eligible_period(entry, as_of) if include_amended else _eligible(entry, as_of)) \
+                or not 70 <= (_duration(entry) or 0) <= 110:
             continue
         if not isinstance(entry.get("val"), (int, float)):
             continue
@@ -233,6 +239,160 @@ def _point_fact(entries, as_of):
     return max(eligible, key=lambda e: (e["end"], e["filed"], e.get("accn", "")), default=None)
 
 
+def _period_fact(data, tags, unit, start, end, as_of, *, form=None, accession=None):
+    """Select one comparable, non-dimensional Company Facts period and tag."""
+    candidates = []
+    for tag in tags:
+        for entry in _tag_entries(data, tag, unit):
+            if (entry.get("start") != start or entry.get("end") != end
+                    or not _eligible_period(entry, as_of)
+                    or form is not None and entry.get("form") not in (form, f"{form}/A")
+                    or accession is not None and entry.get("accn") != accession
+                    or not isinstance(entry.get("val"), (int, float))):
+                continue
+            candidates.append((entry, tag))
+    if not candidates:
+        return None
+    # A later filing may restate a period. Ties with different values or tags
+    # are ambiguous rather than an invitation to pick an arbitrary range.
+    latest = max((entry["filed"], entry.get("accn", "")) for entry, _ in candidates)
+    tied = [(entry, tag) for entry, tag in candidates
+            if (entry["filed"], entry.get("accn", "")) == latest]
+    return tied[0] if len({(tag, entry["val"]) for entry, tag in tied}) == 1 else None
+
+
+def _period_summary(data, filings, as_of, add_source):
+    """Annual, latest standalone quarter and TTM from the latest report end."""
+    annual_filing, quarter_filing = filings
+    annual_end = annual_filing["report_date"]
+    annual = {}
+    for name, tags in {**{key: TAG_MAP[key] for key in ("revenue", "operating_income", "net_income")},
+                       "eps": ("EarningsPerShareDiluted",)}.items():
+        unit = "USD/shares" if name == "eps" else "USD"
+        # Annual start comes from the filed 10-K fact, not January 1.
+        matches = []
+        for tag in tags:
+            for entry in _tag_entries(data, tag, unit):
+                if (entry.get("end") == annual_end and entry.get("form") in ("10-K", "10-K/A")
+                        and _eligible_period(entry, as_of) and 330 <= (_duration(entry) or 0) <= 380
+                        and isinstance(entry.get("val"), (int, float))):
+                    matches.append((entry, tag))
+        starts = {entry["start"] for entry, _ in matches}
+        if len(starts) == 1:
+            annual[name] = _period_fact(data, tags, unit, starts.pop(), annual_end, as_of, form="10-K")
+        else:
+            annual[name] = None
+
+    latest = max(filings, key=lambda item: (item["report_date"], item["filed"]))
+    quarter_end = latest["report_date"]
+    results = []
+
+    def unavailable(metric_id, unit, reason):
+        return {"metric_id": metric_id, "value": None, "status": "unavailable", "unit": unit,
+                "approximate": False, "reason": reason}
+
+    def direct(metric_id, unit, selected):
+        if selected is None:
+            return unavailable(metric_id, unit, "동일 태그·단위·기간의 SEC 원본 값 확인 불가")
+        entry, tag = selected
+        return {"metric_id": metric_id, "value": entry["val"], "status": "ok", "unit": unit,
+                "approximate": False, "period_start": entry["start"], "period_end": entry["end"],
+                "source_ids": [add_source(entry, tag, unit)]}
+
+    def derived(metric_id, unit, parts, operation, start, end):
+        if any(part is None for part in parts):
+            return unavailable(metric_id, unit, "같은 회계기간·태그·단위의 계산 원본 확인 불가")
+        tags = {tag for _, tag in parts}
+        if len(tags) != 1:
+            return unavailable(metric_id, unit, "계산 원본 태그 불일치")
+        values = [entry["val"] for entry, _ in parts]
+        value = values[0] - values[1] if operation == "annual_minus_nine_months" else values[0] + values[1] - values[2]
+        return {"metric_id": metric_id, "value": value, "status": "ok", "unit": unit,
+                "approximate": False, "calculation": operation, "period_start": start, "period_end": end,
+                "source_ids": [add_source(entry, tag, unit) for entry, tag in parts]}
+
+    def disclosed_quarter(tags, unit, filing):
+        candidates = []
+        for tag in tags:
+            for entry in _tag_entries(data, tag, unit):
+                if (entry.get("end") == filing["report_date"]
+                        and entry.get("form") in (filing["form"], f"{filing['form']}/A")
+                        and _eligible_period(entry, as_of) and 70 <= (_duration(entry) or 0) <= 110):
+                    candidates.append((entry, tag))
+        starts = {entry["start"] for entry, _ in candidates}
+        if len(starts) != 1:
+            return None
+        return _period_fact(data, tags, unit, starts.pop(), filing["report_date"], as_of,
+                            form=filing["form"])
+
+    for name in ("revenue", "operating_income", "net_income", "eps"):
+        tags = ("EarningsPerShareDiluted",) if name == "eps" else TAG_MAP[name]
+        unit = "USD/shares" if name == "eps" else "USD"
+        base = annual[name]
+        if name == "eps":
+            results.append(direct("eps_annual", unit, base))
+        else:
+            results.append(direct(f"{name}_fy{annual_end[:4]}", unit, base))
+        quarter_id = f"{name}_quarter_latest"
+        ttm_id = f"{name}_ttm"
+        if latest["form"] == "10-K":
+            if name == "eps":
+                disclosed = disclosed_quarter(tags, unit, latest)
+                results.append(direct(quarter_id, unit, disclosed) if disclosed else
+                               unavailable(quarter_id, unit, "4분기 희석 EPS 원본 없음; 연간·9개월 EPS 차감 불가"))
+            elif base:
+                start = base[0]["start"]
+                nine = _period_fact(data, (base[1],), unit, start, quarter_filing["report_date"], as_of,
+                                    form="10-Q")
+                if nine and 240 <= (_duration(nine[0]) or 0) <= 300 and 70 <= (date.fromisoformat(annual_end) - date.fromisoformat(nine[0]["end"])).days <= 110:
+                    quarter_start = (date.fromisoformat(nine[0]["end"]) + timedelta(days=1)).isoformat()
+                    results.append(derived(quarter_id, unit, (base, nine), "annual_minus_nine_months",
+                                           quarter_start, annual_end))
+                else:
+                    results.append(unavailable(quarter_id, unit, "같은 회계연도의 9개월 누적 10-Q 확인 불가"))
+            else:
+                results.append(unavailable(quarter_id, unit, "10-K 연간 원본 확인 불가"))
+            results.append(direct(ttm_id, unit, base))
+            continue
+
+        # A 10-Q can contain both standalone and year-to-date facts. They
+        # share the end date, so the duration and filing accession matter.
+        standalone = disclosed_quarter(tags, unit, latest)
+        results.append(direct(quarter_id, unit, standalone))
+        if name == "eps":
+            # A sum/difference of EPS or a one-quarter share denominator is
+            # not an observed TTM diluted EPS.
+            direct_ttm = None
+            for tag in tags:
+                for entry in _tag_entries(data, tag, unit):
+                    if (entry.get("end") == quarter_end and entry.get("form") in ("10-Q", "10-Q/A")
+                            and _eligible_period(entry, as_of) and 330 <= (_duration(entry) or 0) <= 380):
+                        direct_ttm = _period_fact(data, (tag,), unit, entry["start"], quarter_end,
+                                                  as_of, form="10-Q")
+            results.append(direct(ttm_id, unit, direct_ttm))
+            continue
+        if not base:
+            results.append(unavailable(ttm_id, unit, "10-K 연간 원본 확인 불가"))
+            continue
+        annual_start = date.fromisoformat(base[0]["start"])
+        current_start = (date.fromisoformat(annual_end) + timedelta(days=1)).isoformat()
+        current = _period_fact(data, (base[1],), unit, current_start, quarter_end, as_of, form="10-Q")
+        try:
+            prior_end = date.fromisoformat(quarter_end).replace(year=date.fromisoformat(quarter_end).year - 1).isoformat()
+        except ValueError:
+            prior_end = None
+        prior = (_period_fact(data, (base[1],), unit, annual_start.isoformat(), prior_end, as_of, form="10-Q")
+                 if prior_end else None)
+        if (current and prior and 70 <= (_duration(current[0]) or 0) <= 300
+                and 70 <= (_duration(prior[0]) or 0) <= 300):
+            ttm_start = (date.fromisoformat(prior_end) + timedelta(days=1)).isoformat()
+            results.append(derived(ttm_id, unit, (base, current, prior),
+                                   "annual_plus_current_ytd_minus_prior_ytd", ttm_start, quarter_end))
+        else:
+            results.append(unavailable(ttm_id, unit, "동일 회계기간 누적 10-Q 원본 확인 불가"))
+    return results, latest
+
+
 def build_sec_bundle(data, raw, engine, now, business_raw=None, *, company=None, filings=None):
     """Construct a schema-valid bundle from already downloaded public facts."""
     if company is None:
@@ -276,10 +436,11 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None, *, company=None,
     def add_source(selected, tag, unit):
         source_id = f"sec-{len(sources) + 1:03d}"
         facts_url = FACTS_URL if company is None else f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+        form_label = f", {selected['form']}" if company else ""
         sources.append({"source_id": source_id, "url": facts_url,
                         "title": f"SEC Company Facts · {tag}", "accessed_at": timestamp,
                         "accession_number": selected.get("accn"),
-                        "location": f"us-gaap/{tag}, {unit}, {selected.get('start', 'instant')}~{selected['end']}, filed {selected['filed']}",
+                        "location": f"us-gaap/{tag}, {unit}, {selected.get('start', 'instant')}~{selected['end']}, filed {selected['filed']}{form_label}",
                         "content_sha256": raw_digest})
         return source_id
 
@@ -298,7 +459,8 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None, *, company=None,
     for metric_name, tags in TAG_MAP.items():
         candidates = []
         for tag in tags:
-            candidates.extend((entry, tag) for entry in annual_facts(_tag_entries(data, tag, "USD"), as_of))
+            candidates.extend((entry, tag) for entry in annual_facts(_tag_entries(data, tag, "USD"), as_of,
+                                                                        include_amended=bool(company)))
         by_end = {}
         for entry, tag in sorted(candidates, key=lambda item: (item[0]["filed"], item[0].get("accn", "")), reverse=True):
             by_end.setdefault(entry["end"], (entry, tag))
@@ -310,7 +472,8 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None, *, company=None,
 
     quarter_candidates = []
     for tag in TAG_MAP["revenue"]:
-        quarter_candidates.extend((entry, tag) for entry in quarterly_facts(_tag_entries(data, tag, "USD"), as_of))
+        quarter_candidates.extend((entry, tag) for entry in quarterly_facts(_tag_entries(data, tag, "USD"), as_of,
+                                                                               include_amended=bool(company)))
     quarter_by_end = {}
     for entry, tag in sorted(quarter_candidates, key=lambda item: (item[0]["filed"], item[0].get("accn", "")), reverse=True):
         quarter_by_end.setdefault(entry["end"], (entry, tag))
@@ -415,6 +578,38 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None, *, company=None,
                                (denominator, "WeightedAverageNumberOfDilutedSharesOutstanding", "shares"))],
                            period_start=(date.fromisoformat(current["end"]).replace(year=int(current["end"][:4]) - 1) + timedelta(days=1)).isoformat(),
                            period_end=current["end"])
+
+    if company:
+        normalized, latest_filing = _period_summary(data, filings, as_of, add_source)
+        replaced = {item["metric_id"] for item in normalized}
+        metrics[:] = [item for item in metrics if item["metric_id"] not in replaced]
+        metrics.extend(normalized)
+        latest_year = latest_filing["report_date"][:4] if latest_filing["form"] == "10-K" else filings[0]["report_date"][:4]
+        normalized_by_id = {item["metric_id"]: item for item in normalized}
+        if normalized_by_id[f"revenue_fy{latest_year}"]["status"] != "ok":
+            metrics[:] = [item for item in metrics if item["metric_id"] not in (
+                f"operating_margin_fy{latest_year}", f"revenue_growth_fy{latest_year}", "revenue_cagr_3y")]
+        elif normalized_by_id[f"operating_income_fy{latest_year}"]["status"] != "ok":
+            metrics[:] = [item for item in metrics if item["metric_id"] != f"operating_margin_fy{latest_year}"]
+        # Prior-year quarter and YoY must refer to the same latest quarter.
+        # The older revenue-only selector may have chosen a prior 10-Q when
+        # the latest report is a 10-K, so suppress it until matched evidence.
+        if latest_filing["form"] == "10-K" or normalized_by_id["revenue_quarter_latest"]["status"] != "ok":
+            for item in metrics:
+                if item["metric_id"] in ("revenue_quarter_prior_year", "revenue_quarter_yoy"):
+                    metric_id = item["metric_id"]
+                    item.clear()
+                    item.update(metric_id=metric_id, value=None, status="unavailable",
+                        unit="USD" if metric_id == "revenue_quarter_prior_year" else "%",
+                        approximate=False, reason="최신 분기와 전년 동기 원본의 비교 가능성 확인 불가")
+        used_sources = {source_id for item in metrics for source_id in item.get("source_ids", [])}
+        sources[:] = [item for item in sources if item["source_id"] in used_sources]
+        source_ids = {item["source_id"]: f"sec-{index:03d}" for index, item in enumerate(sources, 1)}
+        for item in sources:
+            item["source_id"] = source_ids[item["source_id"]]
+        for item in metrics:
+            if "source_ids" in item:
+                item["source_ids"] = [source_ids[source_id] for source_id in item["source_ids"]]
 
     extracted = {"schema_version": "v1-draft", "run_id": run_id,
                  "data_snapshot_id": snapshot_id, "facts": []}

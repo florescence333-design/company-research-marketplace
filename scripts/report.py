@@ -89,7 +89,8 @@ def build_report_items(bundle):
     quarter_text = ""
     if quarter.get("status") == "ok":
         quarter_ids.append("revenue_quarter_latest")
-        quarter_text = (f" {quarter['period_start']}~{quarter['period_end']} 단독 분기 매출 "
+        quarter_label = "계산한 단독 분기" if quarter.get("calculation") else "단독 분기"
+        quarter_text = (f" {quarter['period_start']}~{quarter['period_end']} {quarter_label} 매출 "
                         f"{amount('revenue_quarter_latest')}.")
         if metrics.get("revenue_quarter_yoy", {}).get("status") == "ok":
             quarter_ids.extend(("revenue_quarter_prior_year", "revenue_quarter_yoy"))
@@ -126,13 +127,13 @@ def build_report_items(bundle):
     employee_body = (f"2025년 말 정규직 직원은 {fact_amount('employees_min_fy2025')}명 초과. "
                      "인재 유지·조직문화 평가는 자료 확인 대기.") if employee_fact else "창업자·인재·조직문화의 검증 자료 확인 대기."
     add(11, employee_body, fact_ids=employee_fact)
-    financial_ids = [key for key in sorted(metrics) if key.startswith(("revenue_fy", "revenue_growth_fy", "operating_income_fy", "operating_margin_fy", "net_income_fy", "operating_cash_flow_fy", "capex_fy", "free_cash_flow_fy"))] + ["revenue_cagr_3y", *quarter_ids, "cash", "assets", "liabilities", "stockholders_equity", "liabilities_to_equity", "eps_ttm"]
+    financial_ids = [key for key in sorted(metrics) if key.startswith(("revenue_fy", "revenue_growth_fy", "operating_income_fy", "operating_margin_fy", "net_income_fy", "operating_cash_flow_fy", "capex_fy", "free_cash_flow_fy"))] + ["revenue_cagr_3y", *quarter_ids, "operating_income_quarter_latest", "net_income_quarter_latest", "eps_annual", "eps_quarter_latest", "revenue_ttm", "operating_income_ttm", "net_income_ttm", "cash", "assets", "liabilities", "stockholders_equity", "liabilities_to_equity", "eps_ttm"]
     financial_lines = []
     for metric_id in financial_ids:
         metric = metrics.get(metric_id)
         if metric and metric["status"] == "ok":
             value = f"{metric['value']:,.2f}" if metric_id == "eps_ttm" else f"{metric['value']:,.1f}" if metric["unit"] == "%" else f"{metric['value']:,.0f}"
-            suffix = " (근사)" if metric["approximate"] else ""
+            suffix = " (계산: 원본 출처 ID 참조)" if metric.get("calculation") else " (근사)" if metric["approximate"] else ""
             financial_lines.append(f"- {metric_id}: {value} {metric['unit']}{suffix}; 기간 종료 {metric['period_end']}")
     add(12, "SEC 공시 태그와 그 값에서 코드로 계산한 지표:\n" + "\n".join(financial_lines) + "\nCapEx는 지출액을 양수로 표시하며 FCF는 영업현금흐름에서 CapEx를 뺀 값이다. 부채비율의 분자는 총부채이며 총차입금과 다르다. 회계 품질 종합 평가는 수행하지 않았다.", financial_ids)
     ocf_current = f"operating_cash_flow_fy{year}"
