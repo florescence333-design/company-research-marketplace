@@ -17,7 +17,7 @@ def entry(value, start, end, form, filed, accn):
 
 class Stage5PeriodTests(unittest.TestCase):
     def bundle(self, ticker, facts, annual_end, quarter_end, annual_accn, quarter_accn):
-        cik = "0000789019" if ticker == "MSFT" else "0001674101"
+        cik = {"MSFT": "0000789019", "VRT": "0001674101", "AAPL": "0000320193"}[ticker]
         data = {"cik": int(cik), "entityName": ticker, "facts": {"us-gaap": facts}}
         filings = [{"form": form, "report_date": end, "filed": "2026-07-29",
                     "accession_number": accn, "primary_document": f"{ticker.lower()}.htm",
@@ -91,6 +91,46 @@ class Stage5PeriodTests(unittest.TestCase):
                              {annual_accn, q2_accn, prior_accn})
         self.assertEqual(metrics["eps_quarter_latest"]["value"], 1.2)
         self.assertEqual(metrics["eps_ttm"]["status"], "unavailable")
+
+    def test_fifty_two_week_prior_ytd_accepts_one_day_shift_and_records_pair(self):
+        annual_accn = "0000320193-25-000079"
+        q3_accn = "0000320193-26-000020"
+        prior_accn = "0000320193-25-000040"
+        facts = {}
+        for name, annual, current, current_ytd, prior_ytd in (
+                ("RevenueFromContractWithCustomerExcludingAssessedTax", 400, 110, 320, 290),
+                ("OperatingIncomeLoss", 120, 35, 95, 85),
+                ("NetIncomeLoss", 100, 30, 80, 70)):
+            facts[name] = {"units": {"USD": [
+                entry(annual, "2024-09-29", "2025-09-27", "10-K", "2025-10-31", annual_accn),
+                entry(current, "2026-03-29", "2026-06-27", "10-Q", "2026-07-31", q3_accn),
+                entry(current_ytd, "2025-09-28", "2026-06-27", "10-Q", "2026-07-31", q3_accn),
+                entry(prior_ytd, "2024-09-29", "2025-06-28", "10-Q", "2025-08-01", prior_accn)]}}
+        metrics, sources = self.bundle("AAPL", facts, "2025-09-27", "2026-06-27", annual_accn, q3_accn)
+        for name, expected in (("revenue", 430), ("operating_income", 130), ("net_income", 110)):
+            metric = metrics[f"{name}_ttm"]
+            self.assertEqual(metric["value"], expected)
+            self.assertEqual((metric["period_start"], metric["period_end"]), ("2025-06-29", "2026-06-27"))
+            self.assertEqual(metric["period_match"]["prior_period_end"], "2025-06-28")
+            self.assertEqual(metric["period_match"]["end_offset_days"], 1)
+            self.assertEqual(metric["period_match"]["duration_delta_days"], 0)
+            self.assertEqual(metric["period_match"]["prior_accession_number"], prior_accn)
+            self.assertEqual({sources[s]["accession_number"] for s in metric["source_ids"]},
+                             {annual_accn, q3_accn, prior_accn})
+
+    def test_prior_ytd_with_multiple_windows_or_outside_week_is_unavailable(self):
+        annual_accn = "0000320193-25-000079"
+        q3_accn = "0000320193-26-000020"
+        prior_accn = "0000320193-25-000040"
+        base = [entry(400, "2024-09-29", "2025-09-27", "10-K", "2025-10-31", annual_accn),
+                entry(320, "2025-09-28", "2026-06-27", "10-Q", "2026-07-31", q3_accn)]
+        for prior_periods in (
+                [entry(290, "2024-09-29", "2025-06-28", "10-Q", "2025-08-01", prior_accn),
+                 entry(288, "2024-09-29", "2025-06-21", "10-Q", "2025-08-01", prior_accn)],
+                [entry(290, "2024-09-29", "2025-06-19", "10-Q", "2025-08-01", prior_accn)]):
+            facts = {"RevenueFromContractWithCustomerExcludingAssessedTax": {"units": {"USD": base + prior_periods}}}
+            metrics, _ = self.bundle("AAPL", facts, "2025-09-27", "2026-06-27", annual_accn, q3_accn)
+            self.assertEqual(metrics["revenue_ttm"]["status"], "unavailable")
 
     def test_missing_comparable_tag_or_unit_never_derives_value(self):
         annual_accn = "0001193125-26-323660"

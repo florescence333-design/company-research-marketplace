@@ -1,15 +1,30 @@
 // Verify a Pages deployment without site credentials.
 
-import { resolve } from 'node:path';
+import { existsSync, readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export async function checkDeployment(base, expectedSha) {
+const siteRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+function builtTickers() {
+  const directory = resolve(siteRoot, 'dist', 'company');
+  if (!existsSync(directory)) return [];
+  return readdirSync(directory, { withFileTypes: true })
+    .filter(entry => entry.isDirectory() && /^[A-Z][A-Z0-9.-]{0,9}$/.test(entry.name))
+    .map(entry => entry.name);
+}
+
+export async function checkDeployment(base, expectedSha, tickers = builtTickers()) {
   const origin = new URL(base);
   if (origin.pathname !== '/' || !(['https:'].includes(origin.protocol) ||
       (origin.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(origin.hostname)))) {
     throw new Error('배포 주소는 HTTPS 사이트 루트여야 합니다');
   }
   if (!/^[a-f0-9]{40}$/.test(expectedSha)) throw new Error('기대 커밋 해시 형식 오류');
+  if (!Array.isArray(tickers) || tickers.length === 0 ||
+      tickers.some(ticker => !/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker))) {
+    throw new Error('검사할 빌드 기업 페이지 없음');
+  }
 
   const infoResponse = await fetch(new URL('/build-info.json', origin), {
     redirect: 'manual', signal: AbortSignal.timeout(10000)
@@ -20,7 +35,8 @@ export async function checkDeployment(base, expectedSha) {
   if (Object.keys(info).sort().join(',') !== 'built_at,commit_sha' || info.commit_sha !== expectedSha ||
       !Number.isFinite(Date.parse(info.built_at))) throw new Error('빌드 정보의 필드·커밋 해시 불일치');
 
-  for (const path of ['/', '/company/RKLB/', '/data/companies/RKLB/gpt/current.json']) {
+  for (const path of ['/', ...tickers.flatMap(ticker =>
+    [`/company/${ticker}/`, `/data/companies/${ticker}/gpt/current.json`])]) {
     const response = await fetch(new URL(path, origin), {
       redirect: 'manual', signal: AbortSignal.timeout(10000)
     });

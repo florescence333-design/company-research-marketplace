@@ -5,6 +5,7 @@ import sys
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from jsonschema import Draft202012Validator
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from sec import build_sec_bundle
@@ -56,3 +57,22 @@ class Stage6BodyTests(unittest.TestCase):
         self.assertEqual(bundle["meta"]["filing_body_basis"], sentence)
         self.assertIn(sentence, bundle["extracted-facts"]["limitations"])
         self.assertIn(sentence, render_report(build_report_items(bundle), bundle))
+
+    def test_company_without_body_rules_marks_every_category_missing(self):
+        annual = "0000320193-25-000079"
+        quarter = "0000320193-26-000020"
+        data = {"cik": 320193, "entityName": "Apple Inc.", "facts": {"us-gaap": {}}}
+        filings = [{"form": form, "report_date": period, "filed": "2026-07-31",
+                    "accession_number": accession, "primary_document": "aapl.htm",
+                    "url": f"https://www.sec.gov/Archives/edgar/data/320193/{accession.replace('-', '')}/aapl.htm",
+                    "raw": b"Apple Inc. filing body"}
+                   for form, period, accession in (("10-K", "2025-09-27", annual),
+                                                   ("10-Q", "2026-06-27", quarter))]
+        bundle = build_sec_bundle(data, b"aapl facts", "gpt", datetime(2026, 10, 7, tzinfo=timezone.utc),
+                                  company={"ticker": "AAPL", "cik": "0000320193", "exchange": "NASDAQ",
+                                           "security_type": "Common Stock"}, filings=filings)
+        extracted = bundle["extracted-facts"]
+        self.assertEqual(extracted["facts"], [])
+        self.assertEqual(extracted["missing_categories"], ["business", "customer", "one_off", "debt"])
+        schema = __import__("json").loads((Path(__file__).resolve().parents[1] / "schemas/v1/extracted-facts.schema.json").read_text(encoding="utf-8"))
+        Draft202012Validator(schema).validate(extracted)

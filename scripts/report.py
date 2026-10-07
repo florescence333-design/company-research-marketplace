@@ -80,7 +80,7 @@ def build_report_items(bundle):
     rev_current = rev_ids[0] if rev_ids else None
     rev_prior = rev_ids[1] if len(rev_ids) > 1 else None
     year = rev_current[-4:] if rev_current else "최근"
-    add(1, f"{meta.get('company_name', 'RKLB')} · 티커 RKLB · CIK {meta['cik']}. SEC Company Facts와 2025년 10-K에서 확인한 내용만 담은 부분 분석이다.", [rev_current] if rev_current else [])
+    add(1, f"{meta.get('company_name') or meta['ticker']} · 티커 {meta['ticker']} · CIK {meta['cik']}. SEC Company Facts와 {year}년 10-K에서 확인한 내용만 담은 부분 분석이다.", [rev_current] if rev_current else [])
     growth_ids = sorted(key for key in metrics if key.startswith("revenue_growth_fy") and metrics[key]["status"] == "ok")
     growth_history = ", ".join(f"{key[-4:]}년 {percentage(key)}" for key in growth_ids)
     cagr_text = f" 3년 CAGR {percentage('revenue_cagr_3y')}." if metrics.get("revenue_cagr_3y", {}).get("status") == "ok" else ""

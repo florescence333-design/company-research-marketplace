@@ -19,7 +19,8 @@ assert.equal(publicInfo.status, 200);
 assert.deepEqual(Object.keys(await publicInfo.json()).sort(), ['built_at', 'commit_sha']);
 assert.equal(publicInfo.headers.get('Cache-Control'), 'no-store');
 
-for (const path of [...protectedPages, '/_astro/example.css', '/data/companies/RKLB/gpt/meta.json']) {
+const selectedTicker = companyPages[0].split('/')[2];
+for (const path of [...protectedPages, '/_astro/example.css', `/data/companies/${selectedTicker}/gpt/meta.json`]) {
   const response = await fetch(`${base}${path}`, { redirect: 'manual' });
   assert.equal(response.status, 302, `expected ${path} to require login`);
 }

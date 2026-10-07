@@ -1,4 +1,5 @@
 import json
+import copy
 import sys
 import tempfile
 import unittest
@@ -43,6 +44,14 @@ class ReportTests(unittest.TestCase):
         self.assertIn("판정 보류 (v0.1)", rendered)
         self.assertIn("50.0%", rendered)
         self.assertIn("자료 확인 대기", rendered)
+
+    def test_generic_company_intro_uses_its_own_ticker_and_filing_year(self):
+        bundle = copy.deepcopy(self.bundle)
+        bundle["meta"].update(ticker="AAPL", company_name="Apple Inc.", cik="0000320193")
+        intro = build_report_items(bundle)["sections"][0]["body"]
+        self.assertIn("Apple Inc. · 티커 AAPL · CIK 0000320193", intro)
+        self.assertIn("2025년 10-K", intro)
+        self.assertNotIn("RKLB", intro)
 
     def test_validator_rejects_missing_section_and_unknown_reference(self):
         report = build_report_items(self.bundle)

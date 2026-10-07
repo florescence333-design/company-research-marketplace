@@ -30,8 +30,8 @@ def file_hash(path: Path) -> str:
 def write_run_state(output: Path, no_viz: bool, original: bool) -> None:
     meta = json.loads((output / "meta.json").read_text(encoding="utf-8"))
     extracted = json.loads((output / "extracted-facts.json").read_text(encoding="utf-8")) if (output / "extracted-facts.json").exists() else {"facts": []}
-    body_reason = ("2025 10-K 일부 사업 사실만 추출; 나머지는 자료 확인 대기" if meta["ticker"] == "RKLB"
-                   else f"확인된 본문 사실 {len(extracted['facts'])}건; 누락 범주: {', '.join(extracted.get('missing_categories', [])) or '없음'}")
+    body_reason = (f"확인된 본문 사실 {len(extracted['facts'])}건; "
+                   f"누락 범주: {', '.join(extracted.get('missing_categories', [])) or '없음'}")
     if meta.get("filing_body_basis"):
         body_reason += f"; {meta['filing_body_basis']}"
     template_ready = not original and not validate_template(output)

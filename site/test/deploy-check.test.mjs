@@ -5,7 +5,7 @@ import { checkDeployment } from '../scripts/check-deploy.mjs';
 
 const sha = 'a'.repeat(40);
 
-async function serve(openCompany = false) {
+async function serve(openCompany = false, ticker = 'RKLB') {
   const server = createServer((request, response) => {
     if (request.url === '/build-info.json') {
       response.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
@@ -13,7 +13,7 @@ async function serve(openCompany = false) {
     } else if (request.url === '/login') {
       response.writeHead(200, { 'Content-Type': 'text/html' });
       response.end('login');
-    } else if (request.url === '/company/RKLB/' && openCompany) {
+    } else if (request.url === `/company/${ticker}/` && openCompany) {
       response.writeHead(200);
       response.end('public report');
     } else {
@@ -28,7 +28,16 @@ async function serve(openCompany = false) {
 test('deployment checker accepts matching public build hash and protected report', async () => {
   const { server, base } = await serve();
   try {
-    assert.deepEqual(await checkDeployment(base, sha), { commit_sha: sha, protected: true });
+    assert.deepEqual(await checkDeployment(base, sha, ['RKLB']), { commit_sha: sha, protected: true });
+  } finally {
+    server.close();
+  }
+});
+
+test('deployment checker accepts an installation with only AAPL', async () => {
+  const { server, base } = await serve(false, 'AAPL');
+  try {
+    assert.deepEqual(await checkDeployment(base, sha, ['AAPL']), { commit_sha: sha, protected: true });
   } finally {
     server.close();
   }
@@ -37,7 +46,7 @@ test('deployment checker accepts matching public build hash and protected report
 test('deployment checker rejects a publicly readable company report', async () => {
   const { server, base } = await serve(true);
   try {
-    await assert.rejects(checkDeployment(base, sha), /보호/);
+    await assert.rejects(checkDeployment(base, sha, ['RKLB']), /보호/);
   } finally {
     server.close();
   }
@@ -46,7 +55,7 @@ test('deployment checker rejects a publicly readable company report', async () =
 test('deployment checker rejects a stale build hash', async () => {
   const { server, base } = await serve();
   try {
-    await assert.rejects(checkDeployment(base, 'b'.repeat(40)), /커밋 해시/);
+    await assert.rejects(checkDeployment(base, 'b'.repeat(40), ['RKLB']), /커밋 해시/);
   } finally {
     server.close();
   }

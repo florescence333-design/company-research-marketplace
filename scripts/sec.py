@@ -378,17 +378,49 @@ def _period_summary(data, filings, as_of, add_source):
         annual_start = date.fromisoformat(base[0]["start"])
         current_start = (date.fromisoformat(annual_end) + timedelta(days=1)).isoformat()
         current = _period_fact(data, (base[1],), unit, current_start, quarter_end, as_of, form="10-Q")
+        quarter_date = date.fromisoformat(quarter_end)
         try:
-            prior_end = date.fromisoformat(quarter_end).replace(year=date.fromisoformat(quarter_end).year - 1).isoformat()
-        except ValueError:
-            prior_end = None
-        prior = (_period_fact(data, (base[1],), unit, annual_start.isoformat(), prior_end, as_of, form="10-Q")
-                 if prior_end else None)
+            expected_prior_end = quarter_date.replace(year=quarter_date.year - 1)
+        except ValueError:  # February 29 has no exact counterpart in a non-leap year.
+            expected_prior_end = quarter_date.replace(year=quarter_date.year - 1, day=28)
+        current_duration = _duration(current[0]) if current else None
+        prior_windows = set()
+        if current_duration is not None:
+            for entry in _tag_entries(data, base[1], unit):
+                if (entry.get("start") != annual_start.isoformat()
+                        or entry.get("form") not in ("10-Q", "10-Q/A")
+                        or not _eligible_period(entry, as_of)
+                        or not isinstance(entry.get("val"), (int, float))):
+                    continue
+                try:
+                    candidate_end = date.fromisoformat(entry["end"])
+                except (KeyError, ValueError):
+                    continue
+                duration = _duration(entry)
+                if (abs((candidate_end - expected_prior_end).days) <= 7
+                        and duration is not None and abs(duration - current_duration) <= 7
+                        and 70 <= duration <= 300):
+                    prior_windows.add((entry["start"], entry["end"]))
+        prior = None
+        if len(prior_windows) == 1:
+            prior_start, prior_end = next(iter(prior_windows))
+            prior = _period_fact(data, (base[1],), unit, prior_start, prior_end, as_of, form="10-Q")
         if (current and prior and 70 <= (_duration(current[0]) or 0) <= 300
                 and 70 <= (_duration(prior[0]) or 0) <= 300):
-            ttm_start = (date.fromisoformat(prior_end) + timedelta(days=1)).isoformat()
-            results.append(derived(ttm_id, unit, (base, current, prior),
-                                   "annual_plus_current_ytd_minus_prior_ytd", ttm_start, quarter_end))
+            ttm_start = (date.fromisoformat(prior[0]["end"]) + timedelta(days=1)).isoformat()
+            result = derived(ttm_id, unit, (base, current, prior),
+                             "annual_plus_current_ytd_minus_prior_ytd", ttm_start, quarter_end)
+            if result["status"] == "ok":
+                result["period_match"] = {
+                    "current_period_start": current[0]["start"], "current_period_end": current[0]["end"],
+                    "prior_period_start": prior[0]["start"], "prior_period_end": prior[0]["end"],
+                    "expected_prior_end": expected_prior_end.isoformat(),
+                    "end_offset_days": (date.fromisoformat(prior[0]["end"]) - expected_prior_end).days,
+                    "duration_delta_days": _duration(prior[0]) - current_duration,
+                    "current_accession_number": current[0]["accn"],
+                    "prior_accession_number": prior[0]["accn"],
+                }
+            results.append(result)
         else:
             results.append(unavailable(ttm_id, unit, "동일 회계기간 누적 10-Q 원본 확인 불가"))
     return results, latest
@@ -634,6 +666,7 @@ def build_sec_bundle(data, raw, engine, now, business_raw=None, *, company=None,
                                                 "unit": item["unit"], "category": item["category"],
                                                 "source_id": source_id, "location": item["location"],
                                                 "verification": "matched_official_filing_text"})
+        if ticker != "RKLB":
             covered = {item["category"] for item in extracted["facts"]}
             extracted["missing_categories"] = [category for category in
                                                ("business", "customer", "one_off", "debt")

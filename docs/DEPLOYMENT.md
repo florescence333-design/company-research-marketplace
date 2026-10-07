@@ -12,18 +12,18 @@ npm.cmd run build --prefix site
 npm.cmd run preview --prefix site -- --host 127.0.0.1 --port 4321
 ```
 
-화면 주소는 `http://127.0.0.1:4321/company/RKLB/`이다. 일반 Astro 미리보기는 정적 화면 확인용이며 Cloudflare 비밀번호 미들웨어 검사는 아래 Pages 로컬 개발 서버에서 한다. SEC 수집 결과가 없으면 명시적으로 `샘플 데이터`라고 표시하고, 있으면 실제 수치·출처를 표시한다. 투자 판정은 언제나 `판정 보류 (v0.1)`이다.
+화면 주소는 `http://127.0.0.1:4321/company/<티커>/`이다. 일반 Astro 미리보기는 정적 화면 확인용이며 Cloudflare 비밀번호 미들웨어 검사는 아래 Pages 로컬 개발 서버에서 한다. SEC 수집 결과가 없으면 명시적으로 `샘플 데이터`라고 표시하고, 있으면 실제 수치·출처를 표시한다. 투자 판정은 언제나 `판정 보류 (v0.1)`이다.
 
-실제 RKLB 실행은 사용자 범위 `SEC_USER_AGENT` 환경변수를 현재 PowerShell 프로세스에서만 읽어 SEC에 전달한다. 값을 화면·로그·파일에 출력하지 않는다.
+실제 기업 실행은 사용자 범위 `SEC_USER_AGENT` 환경변수를 현재 PowerShell 프로세스에서만 읽어 SEC에 전달한다. 값을 화면·로그·파일에 출력하지 않는다.
 
 선택적 `TWELVE_DATA_API_KEY`가 있으면 주가와 52주 범위 등 제공되는 시장 스냅샷을 로컬에서 조회한다. 키는 인증 헤더에만 쓰고 저장·출력하지 않는다. `site/data/companies/<티커>/market-snapshot.json`에는 해당 티커와 정규화한 숫자·시각만 기록하며, 제공자의 티커가 다르면 저장하지 않는다. Twelve Data의 개인 요금제는 외부 표시·재배포 범위가 제한될 수 있으므로, 계정의 사이트 표시 권한이 확인되기 전에는 `scripts/export_site.py`가 이 파일을 비공개 사이트 저장소로 내보내지 않는다. 권한을 확인한 경우에만 배포 실행 환경에서 `TWELVE_DATA_DISPLAY_ALLOWED=1`을 설정한다. 값이 없거나 API 항목이 미제공이면 화면은 `확인 불가`를 표시한다.
 
 ```powershell
 $env:SEC_USER_AGENT=[Environment]::GetEnvironmentVariable('SEC_USER_AGENT','User')
-.venv\Scripts\python.exe scripts\company.py RKLB --engine gpt --new
+.venv\Scripts\python.exe scripts\company.py <티커> --engine gpt --new
 ```
 
-이 명령은 SEC 수집 → 코드 초안 → S0.5 커스텀 템플릿 → 섹션 묶음 분석 → 보고서 근거 플라이휠·가치사슬 → 검증 → 로컬 사이트 빌드·테스트 순서다. 기존 결과를 다시 검증·게시하려면 `.venv\Scripts\python.exe scripts\publish.py RKLB --engine gpt --run-id <실행 폴더 이름>`을 쓴다. 검증 또는 빌드가 실패하면 `site/data/companies/RKLB/gpt/current.json`이 이전 선택 결과를 가리키도록 복구한다. `validation.json`의 `passed`는 로컬 구조·원본 재계산·해시 검사 결과이며 원격 배포 성공 표시가 아니다.
+이 명령은 SEC 수집 → 코드 초안 → S0.5 커스텀 템플릿 → 섹션 묶음 분석 → 보고서 근거 플라이휠·가치사슬 → 검증 → 로컬 사이트 빌드·테스트 순서다. 기존 결과를 다시 검증·게시하려면 `.venv\Scripts\python.exe scripts\publish.py <티커> --engine gpt --run-id <실행 폴더 이름>`을 쓴다. 검증 또는 빌드가 실패하면 `site/data/companies/<티커>/gpt/current.json`이 이전 선택 결과를 가리키도록 복구한다. `validation.json`의 `passed`는 로컬 구조·원본 재계산·해시 검사 결과이며 원격 배포 성공 표시가 아니다.
 
 ## Pages 인증 및 빌드 정보
 
@@ -46,7 +46,7 @@ cd site
 node scripts/check-deploy.mjs https://<확인할-주소> <사이트-저장소-커밋-전체-SHA>
 ```
 
-이 검사는 공개 빌드 정보의 두 필드·캐시 설정·해시 일치와 비인증 목록·RKLB 상세·분석 JSON 차단, 로그인 페이지 응답을 확인한다. 성공해도 로그인 이후 화면 동작은 별도로 수동 확인한다. 배포가 이전 해시를 제공하면 아직 완료로 표시하지 않고 DESIGN.md의 15초 간격·10분 한도에 따라 재확인한다.
+이 검사는 공개 빌드 정보의 두 필드·캐시 설정·해시 일치와 비인증 목록·게시된 기업 상세·분석 JSON 차단, 로그인 페이지 응답을 확인한다. 성공해도 로그인 이후 화면 동작은 별도로 수동 확인한다. 배포가 이전 해시를 제공하면 아직 완료로 표시하지 않고 DESIGN.md의 15초 간격·10분 한도에 따라 재확인한다.
 
 ## 독립 비공개 사이트 저장소 준비
 
@@ -61,4 +61,4 @@ cd site
 npx.cmd wrangler pages dev dist --port 8788 --ip 127.0.0.1
 ```
 
-다른 PowerShell 창의 저장소 루트에서 `node site/scripts/check-local-auth.mjs`를 실행하면 공개 빌드 정보·보호 경로·서명 쿠키·변조 쿠키를 검사한다. 2026-10-07 원격 검사에서 운영·미리보기 별칭과 새 고유 주소의 `/build-info.json`이 각각 커밋 `c80294fc62049240334a044ca2f0492afeabe67e`, `a551e9453f6da51333aec53e9f40c7ace5f6d285`를 공개했고, 비로그인 목록·RKLB·분석 데이터 경로는 `/login`으로 302 이동했다. 두 환경 모두 무작위 틀린 비밀번호는 401이며 쿠키를 발급하지 않았다. 사용자가 각 로그인 화면에서 정상 비밀번호를 직접 입력한 뒤 두 보호된 RKLB 화면과 16개 보고서 섹션이 표시되는 것을 확인했다. 실제 30일 만료와 원격 비밀번호 변경 후 세션 무효화는 별도 검증이 필요하다.
+다른 PowerShell 창의 저장소 루트에서 `node site/scripts/check-local-auth.mjs`를 실행하면 공개 빌드 정보·보호 경로·서명 쿠키·변조 쿠키를 검사한다. 2026-10-07 원격 검사에서 운영·미리보기 별칭과 새 고유 주소의 `/build-info.json`이 각각 커밋 `c80294fc62049240334a044ca2f0492afeabe67e`, `a551e9453f6da51333aec53e9f40c7ace5f6d285`를 공개했고, 비로그인 목록·기존 기업 상세·분석 데이터 경로는 `/login`으로 302 이동했다. 두 환경 모두 무작위 틀린 비밀번호는 401이며 쿠키를 발급하지 않았다. 사용자가 각 로그인 화면에서 정상 비밀번호를 직접 입력한 뒤 보호된 기업 화면과 16개 보고서 섹션이 표시되는 것을 확인했다. 실제 30일 만료와 원격 비밀번호 변경 후 세션 무효화는 별도 검증이 필요하다.
