@@ -65,7 +65,15 @@ def validate_bundle(folder: Path) -> list[str]:
         try:
             report = json.loads(report_path.read_text(encoding="utf-8"))
             errors.extend(f"report-items.json: {error}" for error in validate_report_items(report, objects))
-            if (folder / "report.md").read_text(encoding="utf-8") != render_report(report, objects):
+            expected_report = render_report(report, objects)
+            actual_report = (folder / "report.md").read_text(encoding="utf-8")
+            ai_heading = f"# {objects['meta']['ticker']} 기업분석 — AI 분석 보고서"
+            legacy_report = None
+            if expected_report.startswith(ai_heading + "\n"):
+                # Previously published AI bundles used the partial-report heading.
+                legacy_heading = f"# {objects['meta']['ticker']} 기업분석 — v0.1 부분 보고서"
+                legacy_report = legacy_heading + expected_report[len(ai_heading):]
+            if actual_report != expected_report and actual_report != legacy_report:
                 errors.append("report-items.json: 보고서 본문과 report.md 불일치")
         except (OSError, KeyError, json.JSONDecodeError) as exc:
             errors.append(f"report-items.json: 읽기 실패: {exc}")

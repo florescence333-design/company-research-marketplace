@@ -45,6 +45,26 @@ class ReportTests(unittest.TestCase):
         self.assertIn("50.0%", rendered)
         self.assertIn("자료 확인 대기", rendered)
 
+    def test_ai_title_requires_recorded_model_and_every_section_complete(self):
+        bundle = copy.deepcopy(self.bundle)
+        report = build_report_items(bundle)
+        for section in report["sections"]:
+            section["status"] = "complete"
+        report["sections"][0]["subsections"] = [{"section_id": "S01-A", "title": "추가 분석",
+                                                   "status": "complete", "body": "본문", "source_ids": []}]
+        bundle["meta"]["model"] = "codex"
+        self.assertTrue(render_report(report, bundle).startswith("# RKLB 기업분석 — AI 분석 보고서\n"))
+        self.assertIn("최종 판정: **판정 보류 (v0.1)**", render_report(report, bundle))
+
+        report["sections"][0]["subsections"][0]["status"] = "partial"
+        self.assertTrue(render_report(report, bundle).startswith("# RKLB 기업분석 — v0.1 부분 보고서\n"))
+        report["sections"][0]["subsections"][0]["status"] = "complete"
+        report["sections"][1]["status"] = "unavailable"
+        self.assertTrue(render_report(report, bundle).startswith("# RKLB 기업분석 — v0.1 부분 보고서\n"))
+        report["sections"][1]["status"] = "complete"
+        bundle["meta"]["model"] = None
+        self.assertTrue(render_report(report, bundle).startswith("# RKLB 기업분석 — v0.1 부분 보고서\n"))
+
     def test_generic_company_intro_uses_its_own_ticker_and_filing_year(self):
         bundle = copy.deepcopy(self.bundle)
         bundle["meta"].update(ticker="AAPL", company_name="Apple Inc.", cik="0000320193")

@@ -171,7 +171,13 @@ def validate_report_items(report, bundle):
 
 
 def render_report(report, bundle):
-    lines = [f"# {bundle['meta']['ticker']} 기업분석 — v0.1 부분 보고서", "",
+    sections = report["sections"]
+    items = [item for section in sections for item in (section, *section.get("subsections", []))]
+    model = bundle["meta"].get("model")
+    complete_ai = (isinstance(model, str) and bool(model.strip()) and
+                   len(sections) == len(TEMPLATE) and all(item["status"] == "complete" for item in items))
+    title = "AI 분석 보고서" if complete_ai else "v0.1 부분 보고서"
+    lines = [f"# {bundle['meta']['ticker']} 기업분석 — {title}", "",
              f"기준시각: {bundle['meta']['analysis_as_of']} · 데이터 스냅샷: {bundle['meta']['data_snapshot_id']}",
              "이 보고서는 SEC 공시 수치 중심의 초기 결과다. 자료 확인 대기 섹션은 결론으로 간주하지 않는다.", ""]
     if bundle["meta"].get("filing_body_basis"):

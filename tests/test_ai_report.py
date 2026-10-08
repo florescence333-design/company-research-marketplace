@@ -76,6 +76,13 @@ class AiReportTests(unittest.TestCase):
             finalized = json.loads((folder / "report-items.json").read_text(encoding="utf-8"))
             self.assertEqual({section["status"] for section in finalized["sections"]}, {"complete"})
             self.assertEqual(json.loads((folder / "meta.json").read_text(encoding="utf-8"))["model"], "claude-code")
+            self.assertTrue((folder / "report.md").read_text(encoding="utf-8").startswith(
+                "# RKLB 기업분석 — AI 분석 보고서\n"))
+            self.assertEqual(validate_bundle(folder), [])
+            historical = (folder / "report.md").read_text(encoding="utf-8").replace(
+                "# RKLB 기업분석 — AI 분석 보고서\n",
+                "# RKLB 기업분석 — v0.1 부분 보고서\n", 1)
+            (folder / "report.md").write_text(historical, encoding="utf-8")
             self.assertEqual(validate_bundle(folder), [])
             edited["sections"][0]["body"] = "나중에 변조한 내용"
             (folder / "report-items.json").write_text(json.dumps(edited, ensure_ascii=False), encoding="utf-8")

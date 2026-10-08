@@ -93,6 +93,7 @@ def finalize(folder: Path, model: str, section_ids=None, checkpoint=False):
         if not checkpoint:
             meta["model"] = model
         (folder / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        bundle["meta"] = meta
         (folder / "report.md").write_text(render_report(report, bundle), encoding="utf-8")
         (folder / "validation.json").unlink(missing_ok=True)
         no_viz = run["options"].get("no_viz", False)
