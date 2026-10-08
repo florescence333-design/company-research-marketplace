@@ -1,10 +1,12 @@
 # Company Research Plugin — Windows 설치·실행 안내
 
+> **Windows Codex CLI 필수:** Codex 앱과 함께 실행할 때는 `codex.cmd --no-daemon`으로 새 CLI 세션을 연다. **0.6.0은 `$company`가 스킬 목록에 보이지 않는 문제가 있으므로 0.6.1을 사용한다.** 기존 0.6.0 설치본은 아래 [업데이트 절차](#플러그인-설치업데이트와-기존-작업-폴더)로 교체한다.
+
 > **빠른 안내**
 > - 미국 주요 거래소 상장·10-K/10-Q 공시·US-GAAP·비금융 일반 기업이며 상장(또는 SPAC 합병) 뒤 10-K 회계연도가 4개 이상인 기업을 대상으로 한다. 실행 전 S0에서 확인한다.
 > - VRT·MSFT는 독립 설치본에서 GPT 전체 분석·검증·로컬 게시까지 확인했다. Codex 앱의 스킬 직접 실행과 Claude Code의 AI 전체 작성은 미검증이다.
 
-공개 GitHub 마켓플레이스 플러그인 버전은 **0.6.0**이다.
+이 릴리스의 GitHub 마켓플레이스 플러그인 버전은 **0.6.1**이다.
 
 미국 기업 티커의 SEC 공시 수치를 수집하고 S0.5 기업별 커스텀 템플릿을 만든 뒤, 16개 대섹션과 필요한 하위 섹션을 분석하는 로컬 웹 화면을 만든다. 투자 판정은 현재 **`판정 보류 (v0.1)`**로 고정되어 있다. 검색을 시도하고도 근거를 찾지 못한 항목만 `자료 확인 대기`로 표시한다. 실제 결과와 합성 샘플을 혼동하지 않는다.
 
@@ -32,9 +34,9 @@ SEC는 연락 가능한 이름과 이메일을 넣은 User-Agent를 요구한다
 
 ## 플러그인 설치·업데이트와 기존 작업 폴더
 
-Codex 앱에서는 **플러그인** 화면에서 `company-research-marketplace` GitHub 마켓플레이스를 추가하고 `company-analysis`를 설치한다. 기존 설치본은 마켓플레이스를 새로 고친 뒤 플러그인을 제거·재설치하고 앱을 다시 연다. 설치된 플러그인 버전이 `0.6.0`인지 확인한다. 앱 안에서 `$company <티커>`를 끝까지 실행하는 경로는 아직 검증하지 않았다.
+Codex 앱에서는 **플러그인** 화면에서 `company-research-marketplace` GitHub 마켓플레이스를 추가하고 `company-analysis`를 설치한다. 기존 설치본은 마켓플레이스를 새로 고친 뒤 플러그인을 제거·재설치하고 앱을 다시 연다. 설치된 플러그인 버전이 `0.6.1`인지 확인한다. 앱 안에서 `$company <티커>`를 끝까지 실행하는 경로는 아직 검증하지 않았다.
 
-Codex CLI의 첫 설치는 아래 `marketplace add`와 `plugin add`를 실행한다. 이미 설치했다면 `marketplace upgrade` → `plugin remove` → `plugin add` 순서로 교체한다. PowerShell에서는 `codex.cmd`를 사용한다.
+Codex CLI의 첫 설치는 아래 `marketplace add`와 `plugin add`를 실행한다. **0.6.0에서 0.6.1로 갱신할 때는** `marketplace upgrade` → `plugin remove` → `plugin add` 순서로 교체한 뒤 새 CLI 세션을 연다. PowerShell에서는 `codex.cmd`를 사용한다. 갱신 후 캐시에 `company-analysis/0.6.1` 폴더가 생겼는지, 새 세션의 `$` 목록에 `company`와 `company-publish`가 모두 보이는지 확인한다.
 
 ```powershell
 codex.cmd plugin marketplace add florescence333-design/company-research-marketplace
@@ -116,7 +118,7 @@ Set-Location "$env:USERPROFILE\Documents\CompanyResearchCodexTest"
 codex.cmd --no-daemon -a on-request -s workspace-write -c sandbox_workspace_write.network_access=true
 ```
 
-설치 전 `plugin list`의 `VERSION` 칸이 비어 있어도 정상이다. 설치 후 플러그인 경로의 `company-analysis/0.6.0`을 확인한다. 앱 안에서 `$company <티커>`를 실행하는 경로는 아직 시험 전이다. Codex 앱이 켜진 상태에서 CLI를 일반 실행하면 `os error 5`가 발생한 적이 있어 위 명령에 `--no-daemon`을 넣었다. 기본 샌드박스에서는 인터넷·작업 폴더 밖 접근이 막혀 Python 준비가 실패했으며, 위 `workspace-write`·네트워크 설정으로 실행했다. [OpenAI 플러그인 안내](https://developers.openai.com/plugins/build/plugins)와 [Codex 설정 참고](https://learn.chatgpt.com/docs/config-file/config-reference)를 함께 볼 수 있다.
+설치 전 `plugin list`의 `VERSION` 칸이 비어 있어도 정상이다. 설치 후 플러그인 경로의 `company-analysis/0.6.1`을 확인한다. 앱 안에서 `$company <티커>`를 실행하는 경로는 아직 시험 전이다. Codex 앱이 켜진 상태에서 CLI를 일반 실행하면 `os error 5`가 발생한 적이 있어 위 명령에 `--no-daemon`을 넣었다. 기본 샌드박스에서는 인터넷·작업 폴더 밖 접근이 막혀 Python 준비가 실패했으며, 위 `workspace-write`·네트워크 설정으로 실행했다. [OpenAI 플러그인 안내](https://developers.openai.com/plugins/build/plugins)와 [Codex 설정 참고](https://learn.chatgpt.com/docs/config-file/config-reference)를 함께 볼 수 있다.
 
 Codex 입력창은 **영문 입력 상태**로 두고 `$company <티커>`를 입력한다. 승인 질문은 과거 리허설 기준 4~5번 안팎이었다. 횟수나 스크립트 목록은 고정되어 있지 않다. 요청된 명령이 **현재 작업 폴더 안의 `.company-research/` 플러그인 스크립트**를 실행하는지 확인한 뒤 해당되면 **2번(`p`)**을 선택한다. 다른 경로나 예상하지 못한 외부 전송 명령이면 먼저 내용을 확인한다.
 
@@ -132,6 +134,7 @@ npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 ## 알려진 한계
 
 - Codex 앱의 스킬 직접 실행은 미검증이다. Codex CLI의 이전 공개판 경로와 0.6.0 독립 설치본의 비AI 경로, VRT·MSFT GPT 전체 분석은 검증했다.
+- 0.6.0의 `company` 스킬 파일에는 UTF-8 BOM이 있어 Codex CLI가 스킬을 읽지 못한다. 0.6.1로 업데이트해야 한다.
 - Claude Code 판은 실험적이며 새 빈 폴더의 AI 전체 작성은 미검증이다.
 - 처음 보는 기업에는 본문 추출 규칙이 없어 사업·고객·일회성 사건·부채 범주가 모두 누락으로 남는다. SEC 재무값과 본문 분석의 범위를 구분한다.
 - 정정 공시가 있으면 수치는 정정본 기준이지만 본문 추출은 원본 10-K 기준이다.
