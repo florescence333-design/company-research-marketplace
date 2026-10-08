@@ -1,4 +1,4 @@
-﻿---
+---
 name: company
 description: Create a sourced US-GAAP company research bundle for a ticker. The investment verdict is held at 판정 보류 (v0.1) until policy details are approved.
 ---
