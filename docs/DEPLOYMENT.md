@@ -1,6 +1,6 @@
 # 사이트 배포 메모 — 운영·dev 인증 확인
 
-사이트 코드는 `site/`에 있다. 비공개 사이트 저장소 `florescence333-design/company-research-site`의 `main` 운영 배포(`c80294f`)와 `dev` 미리보기 배포(`a551e94`)를 인증 설정 후 다시 배포해 검증했다. 운영 주소는 [company-research-site.pages.dev](https://company-research-site.pages.dev), 새 운영 고유 주소는 [77cb5c63.company-research-site.pages.dev](https://77cb5c63.company-research-site.pages.dev)다. 미리보기 별칭은 [dev.company-research-site.pages.dev](https://dev.company-research-site.pages.dev), 새 미리보기 고유 주소는 [76cb04d5.company-research-site.pages.dev](https://76cb04d5.company-research-site.pages.dev)다. 운영에서는 Claude AI 분석이 선택 가능하며 GPT는 코드 초안이다. 미리보기에서는 Claude·Codex AI 분석을 모두 볼 수 있다. 공개 플러그인 저장소 [`florescence333-design/company-research-marketplace`](https://github.com/florescence333-design/company-research-marketplace)에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 운영 자료는 비공개 사이트 저장소 안에서만 관리한다.
+사이트 코드는 `site/`에 있다. 비공개 사이트의 운영·dev 주소와 배포별 고유 주소는 소유자 전용 로컬 문서를 참고한다. 공개 플러그인 저장소 [`florescence333-design/company-research-marketplace`](https://github.com/florescence333-design/company-research-marketplace)에는 `runs/`, 실제 `data/`, `.env`·`.dev.vars`를 넣지 않는다. 운영 자료는 비공개 사이트 저장소 안에서만 관리한다.
 
 ## 로컬 화면
 

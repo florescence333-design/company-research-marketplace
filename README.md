@@ -1,13 +1,14 @@
 # Company Research Plugin — Windows 설치·실행 안내
 
 > **빠른 안내**
-> - 새 빈 폴더에서 끝까지 검증된 경로는 **Codex CLI (0.5.0, 약 18분)**이다. 아래 [Codex CLI로 실행하는 경우](#codex-cli로-실행하는-경우--새-빈-폴더-리허설-완료)부터 보세요.
-> - 미국 상장 비금융 US-GAAP 일반 기업의 티커를 입력한다. 지원 범위는 실행 전 S0에서 확인한다.
-> - Claude Code 경로는 설치·환경 준비까지 확인했고, AI 작성 단계는 미검증이다.
+> - 미국 주요 거래소 상장·10-K/10-Q 공시·US-GAAP·비금융 일반 기업이며 상장(또는 SPAC 합병) 뒤 10-K 회계연도가 4개 이상인 기업을 대상으로 한다. 실행 전 S0에서 확인한다.
+> - VRT·MSFT는 독립 설치본에서 GPT 전체 분석·검증·로컬 게시까지 확인했다. Codex 앱의 스킬 직접 실행과 Claude Code의 AI 전체 작성은 미검증이다.
 
-공개 GitHub 마켓플레이스 플러그인 버전은 **0.5.0**이다.
+공개 GitHub 마켓플레이스 플러그인 버전은 **0.6.0**이다.
 
 미국 기업 티커의 SEC 공시 수치를 수집하고 S0.5 기업별 커스텀 템플릿을 만든 뒤, 16개 대섹션과 필요한 하위 섹션을 분석하는 로컬 웹 화면을 만든다. 투자 판정은 현재 **`판정 보류 (v0.1)`**로 고정되어 있다. 검색을 시도하고도 근거를 찾지 못한 항목만 `자료 확인 대기`로 표시한다. 실제 결과와 합성 샘플을 혼동하지 않는다.
+
+S0는 미국 주요 거래소(NYSE·Nasdaq·NYSE American) 상장, SEC의 대표 티커·일반 영업회사·SIC, 10-K·10-Q 이력과 10-K 회계연도 4개 이상을 확인한다. 금융·보험·부동산(SIC 6000–6799), 최신 연간 공시가 20-F인 기업, 상장 또는 합병 후 10-K 이력이 부족한 기업은 거절한다. 공시·거래소·증권 종류를 확인할 수 없어도 진행하지 않는다. 이 확인은 SEC 메타데이터 기준이며 모든 US-GAAP 계정의 완전성을 보증하지 않는다.
 
 ## 조교 PC에서 필요한 프로그램
 
@@ -29,6 +30,27 @@ SEC는 연락 가능한 이름과 이메일을 넣은 User-Agent를 요구한다
 
 이미 열린 PowerShell·Codex 세션에서 값이 보이지 않으면 SEC 명령을 실행하는 **그 PowerShell 명령 안에서만** `$env:SEC_USER_AGENT = [Environment]::GetEnvironmentVariable("SEC_USER_AGENT", "User")`로 다시 읽는다. 값은 출력하지 않는다.
 
+## 플러그인 설치·업데이트와 기존 작업 폴더
+
+Codex 앱에서는 **플러그인** 화면에서 `company-research-marketplace` GitHub 마켓플레이스를 추가하고 `company-analysis`를 설치한다. 기존 설치본은 마켓플레이스를 새로 고친 뒤 플러그인을 제거·재설치하고 앱을 다시 연다. 설치된 플러그인 버전이 `0.6.0`인지 확인한다. 앱 안에서 `$company <티커>`를 끝까지 실행하는 경로는 아직 검증하지 않았다.
+
+Codex CLI의 첫 설치는 아래 `marketplace add`와 `plugin add`를 실행한다. 이미 설치했다면 `marketplace upgrade` → `plugin remove` → `plugin add` 순서로 교체한다. PowerShell에서는 `codex.cmd`를 사용한다.
+
+```powershell
+codex.cmd plugin marketplace add florescence333-design/company-research-marketplace
+codex.cmd plugin add company-analysis@company-research-marketplace
+```
+
+```powershell
+codex.cmd plugin marketplace upgrade company-research-marketplace
+codex.cmd plugin remove company-analysis@company-research-marketplace
+codex.cmd plugin add company-analysis@company-research-marketplace
+```
+
+Claude Code의 첫 설치는 아래 절차를 따르고, 기존 설치본은 `/plugin marketplace update company-research-marketplace` 뒤 `/plugin update company-analysis@company-research-marketplace`를 실행해 새 세션을 연다.
+
+기존 분석 폴더의 `.company-research/`는 플러그인 갱신만으로 자동 교체되지 않는다. 새 플러그인의 `scripts/bootstrap.py --destination .company-research`를 **기존 폴더 밖에 설치된 플러그인 경로에서** 다시 실행하면 공개 `scripts/`·템플릿·사이트 코드를 덮어 갱신하고 `runs/`·SEC 데이터는 유지한다. 0.5.0 → 0.6.0 덮어 설치를 별도 작업 폴더에서 시험했다. 실행 전에 기존 작업 결과를 백업하고, 새 버전 코드를 섞어 쓰지 않도록 갱신 뒤 새 명령을 실행한다. 확실한 분리가 필요하면 새 빈 작업 폴더를 사용한다.
+
 ## Claude Code로 실행하는 경우 — 새 빈 폴더의 환경 준비 확인
 
 개발 저장소를 복제하거나 `.venv`를 미리 만들 필요가 없다. PowerShell에서 새 빈 폴더를 만들고 그 안에서 Claude Code를 실행한다. 플러그인은 `user` 범위로 설치해 어느 작업 폴더에서도 활성화한다. 첫 실행의 Python·패키지·사이트 준비에는 약 3~10분, SEC 수집에는 약 2~5분이 걸릴 수 있다. AI 작성 시간은 아직 슬래시 명령 전체로 실측하지 않았다.
@@ -47,7 +69,7 @@ Claude Code 대화 입력창에서 다음을 실행한다. 로그인 요청이 �
 /company <티커>
 ```
 
-플러그인은 설치된 자신의 파일에서 공개 실행 코드만 현재 폴더의 `.company-research/`로 복사한다. `uv`가 Python 3.14와 `jsonschema`가 들어간 가상환경을 만들고 npm이 사이트 패키지를 설치한다. 실제 SEC 수집·실행 결과도 그 폴더에만 저장된다. 개발 폴더의 `.venv`나 `git clone`에 의존하지 않는다. 이미 플러그인을 설치한 PC에서 새 버전을 받으려면 Claude Code에서 `/plugin marketplace update company-research-marketplace` 후 `/plugin update company-analysis@company-research-marketplace`를 사용하고 Claude Code를 재시작한다.
+플러그인은 설치된 자신의 파일에서 공개 실행 코드만 현재 폴더의 `.company-research/`로 복사한다. `uv`가 Python 3.14와 `jsonschema`가 들어간 가상환경을 만들고 npm이 사이트 패키지를 설치한다. 실제 SEC 수집·실행 결과도 그 폴더에만 저장된다. 개발 폴더의 `.venv`나 `git clone`에 의존하지 않는다.
 
 Twelve Data 키는 현재 경로에 필요하지 않다. `--sample`은 합성 샘플만 만들며 실제 투자 분석이 아니다.
 
@@ -82,7 +104,7 @@ npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 
 ## Codex CLI로 실행하는 경우 — 새 빈 폴더 리허설 완료
 
-Claude Code와 같은 공개 GitHub 마켓플레이스를 사용한다. Codex 앱을 설치했더라도 CLI는 별도로 설치해야 한다. PowerShell 실행 정책에서 `codex` 대신 `codex.cmd`를 사용한다. Git·uv·Node.js/npm과 사용자 범위 `SEC_USER_AGENT`는 Claude 경로와 공통이며, Codex 계정 로그인도 필요하다. 아래 절차는 Windows의 새 빈 폴더에서 공개 0.5.0 설치·로컬 게시까지 실측했다. 이 브랜치의 다중 기업 SEC 전용 경로는 별도로 검증 중이다.
+Claude Code와 같은 공개 GitHub 마켓플레이스를 사용한다. Codex 앱을 설치했더라도 CLI는 별도로 설치해야 한다. PowerShell 실행 정책에서 `codex` 대신 `codex.cmd`를 사용한다. Git·uv·Node.js/npm과 사용자 범위 `SEC_USER_AGENT`는 Claude 경로와 공통이며, Codex 계정 로그인도 필요하다. 이전 0.5.0의 Codex CLI 새 폴더 설치·로컬 게시와 0.6.0의 독립 설치본 다중 기업 경로를 검증했다.
 
 ```powershell
 npm.cmd install -g @openai/codex@0.160.1
@@ -94,7 +116,7 @@ Set-Location "$env:USERPROFILE\Documents\CompanyResearchCodexTest"
 codex.cmd --no-daemon -a on-request -s workspace-write -c sandbox_workspace_write.network_access=true
 ```
 
-설치 전 `plugin list`의 `VERSION` 칸이 비어 있어도 정상이다. 설치 후 플러그인 경로의 `company-analysis/0.5.0`과 Codex 앱 플러그인 화면의 **설치됨** 표시를 확인했다. 설치는 CLI에서 실측했고, 앱 안에서 `$company <티커>`를 실행하는 경로는 아직 시험 전이다. Codex 앱이 켜진 상태에서 CLI를 일반 실행하면 `os error 5`가 발생해 위 명령에 `--no-daemon`을 넣었다. 기본 샌드박스에서는 인터넷·작업 폴더 밖 접근이 막혀 Python 준비가 실패했으며, 위 `workspace-write`·네트워크 설정으로 실행했다. [OpenAI 플러그인 안내](https://developers.openai.com/plugins/build/plugins)와 [Codex 설정 참고](https://learn.chatgpt.com/docs/config-file/config-reference)를 함께 볼 수 있다.
+설치 전 `plugin list`의 `VERSION` 칸이 비어 있어도 정상이다. 설치 후 플러그인 경로의 `company-analysis/0.6.0`을 확인한다. 앱 안에서 `$company <티커>`를 실행하는 경로는 아직 시험 전이다. Codex 앱이 켜진 상태에서 CLI를 일반 실행하면 `os error 5`가 발생한 적이 있어 위 명령에 `--no-daemon`을 넣었다. 기본 샌드박스에서는 인터넷·작업 폴더 밖 접근이 막혀 Python 준비가 실패했으며, 위 `workspace-write`·네트워크 설정으로 실행했다. [OpenAI 플러그인 안내](https://developers.openai.com/plugins/build/plugins)와 [Codex 설정 참고](https://learn.chatgpt.com/docs/config-file/config-reference)를 함께 볼 수 있다.
 
 Codex 입력창은 **영문 입력 상태**로 두고 `$company <티커>`를 입력한다. 승인 질문은 과거 리허설 기준 4~5번 안팎이었다. 횟수나 스크립트 목록은 고정되어 있지 않다. 요청된 명령이 **현재 작업 폴더 안의 `.company-research/` 플러그인 스크립트**를 실행하는지 확인한 뒤 해당되면 **2번(`p`)**을 선택한다. 다른 경로나 예상하지 못한 외부 전송 명령이면 먼저 내용을 확인한다.
 
@@ -107,13 +129,21 @@ npm.cmd run dev --prefix .company-research/site -- --host 127.0.0.1 --port 4321
 
 브라우저 주소는 `http://127.0.0.1:4321/company/<티커>/`이며 서버는 `Ctrl+C`로 종료한다. 로컬 게시만으로 GitHub나 Cloudflare에 자동 배포되지는 않는다.
 
+## 알려진 한계
+
+- Codex 앱의 스킬 직접 실행은 미검증이다. Codex CLI의 이전 공개판 경로와 0.6.0 독립 설치본의 비AI 경로, VRT·MSFT GPT 전체 분석은 검증했다.
+- Claude Code 판은 실험적이며 새 빈 폴더의 AI 전체 작성은 미검증이다.
+- 처음 보는 기업에는 본문 추출 규칙이 없어 사업·고객·일회성 사건·부채 범주가 모두 누락으로 남는다. SEC 재무값과 본문 분석의 범위를 구분한다.
+- 정정 공시가 있으면 수치는 정정본 기준이지만 본문 추출은 원본 10-K 기준이다.
+- 로컬 게시만 자동화되어 있다. 비공개 원격 사이트 반영은 소유자가 수동으로 검증·배포한다.
+
 ## 현재 범위
 
 | 완성된 것 | 미완성인 것 |
 | --- | --- |
 | 16개 Master Template 섹션 ID·제목, v1 초안 JSON Schema | 투자 프레임워크 v2 입력 |
 | SEC 재무·최신 분기·TTM 기간 정규화, 일부 기업의 10-K/10-Q 본문 사실 추출 | 모든 업종의 범용 본문 추출, 비12월 결산 3곳 이상 통합 검증, 공시 전체 대조·심층 재무 지표 |
-| Codex 개발판 16개 대섹션+하위 섹션, S0.5 커스텀 템플릿, 보고서 근거 플라이휠·가치사슬, 재무 카드 6개 | 새 기업의 전체 GPT 분석(9단계 예정), 조교 경로 보고서 깊이, Claude판 새 지침 전체 실행 |
+| Codex 독립 설치본의 VRT·MSFT 16개 대섹션+하위 섹션 GPT 분석, S0.5 커스텀 템플릿, 보고서 근거 플라이휠·가치사슬, 재무 카드 6개 | 조교 경로의 별도 재현, Claude판 새 지침 전체 실행 |
 | 실행 재사용, 로컬 자동 게시·빌드 실패 복구, 비공개 사이트의 운영·dev Pages 인증·접근 검사 | 판정 엔진, 30일 만료·비밀번호 변경의 원격 세션 검사, 원격 자동 게시·복구 검증 |
 
 구체적인 제한과 재확인 항목은 [알려진 문제](docs/KNOWN_ISSUES.md)에 있다. 비밀 값과 실제 실행 데이터는 Git에서 제외된다.
